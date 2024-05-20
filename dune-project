@@ -5,22 +5,22 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github dx3mod/bavar))
 
-(authors "Author Name")
+(authors "Mihail Lopatin <dx3mod@bk.ru>")
 
 (maintainers "Maintainer Name")
 
-(license LICENSE)
+(license MIT)
 
 (documentation https://url/to/documentation)
 
 (package
  (name bavar)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune)
+ (synopsis "AVR C/C++ project builder")
+ (description "A domain-specific build system for AVR C/C++ projects")
+ (depends ocaml dune sexplib ppx_deriving decoders-sexplib re globlon base)
  (tags
-  (topics "to describe" your project)))
+  (labavrplatform avr build-system)))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project

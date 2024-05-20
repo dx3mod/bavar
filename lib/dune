@@ -1,2 +1,5 @@
 (library
- (name bavar))
+ (name bavar)
+ (libraries unix sexplib decoders-sexplib base)
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving.make ppx_deriving.ord)))
