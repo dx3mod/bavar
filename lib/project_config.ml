@@ -14,7 +14,11 @@ type layout = {
 }
 [@@deriving show, make]
 
-type build_configurations = { release : build_options; debug : build_options }
+type build_configurations = {
+  release : build_options;
+  debug : build_options;
+  custom : build_options option;
+}
 [@@deriving show]
 
 let release_build_options = make_build_options ~lto:true ()
@@ -26,7 +30,11 @@ type t = {
   layout : layout; [@default make_layout ()]
   build : build_configurations;
       [@default
-        { release = release_build_options; debug = debug_build_options }]
+        {
+          release = release_build_options;
+          debug = debug_build_options;
+          custom = None;
+        }]
   lang : string option;
   strict : bool; [@default true]
   envs : (string * string) list; [@default []]
@@ -53,6 +61,10 @@ let rec of_sexp sexp =
         (build_options_decoder release_build_options)
     in
 
+    let* custom_build =
+      D.field_opt "build" (build_options_decoder @@ debug_build_options)
+    in
+
     let* envs = D.field_opt_or "envs" ~default:[] envs_decoder in
 
     D.succeed
@@ -60,7 +72,7 @@ let rec of_sexp sexp =
         name;
         target;
         layout = make_layout ();
-        build = { debug; release };
+        build = { debug; release; custom = custom_build };
         lang;
         strict;
         envs;
