@@ -3,8 +3,11 @@ type build_options = {
   lto : bool; [@default false]
   no_std : bool; [@default false]
   custom : string list; [@default []]
+  artifacts : artifacts; [@default { intermixed = false; intel_hex = false }]
 }
 [@@deriving show, make]
+
+and artifacts = { intermixed : bool; intel_hex : bool } [@@deriving show]
 
 type program_options = { programmer_id : string; port : string option }
 [@@deriving show]
@@ -54,7 +57,7 @@ let rec of_sexp sexp =
         (build_options_decoder debug_build_options)
     in
     let* release =
-      D.field_opt_or "build.release" ~default:release_build_options
+      D.field_opt_or "build" ~default:release_build_options
         (build_options_decoder release_build_options)
     in
 
@@ -105,6 +108,15 @@ and build_options_decoder default =
     | Sexp.Atom ("no_std" | "nostd") -> Ok { origin with no_std = true }
     | Sexp.Atom x when String.is_prefix x ~prefix:"O" && String.length x = 2 ->
         Ok { origin with opt_level = String.get x 1 }
+    | Sexp.Atom ("intel_hex" | "ihex") ->
+        Ok
+          { origin with artifacts = { origin.artifacts with intel_hex = true } }
+    | Sexp.Atom "intermixed" ->
+        Ok
+          {
+            origin with
+            artifacts = { origin.artifacts with intermixed = true };
+          }
     | Sexp.List [ Sexp.Atom "lto"; Sexp.Atom (("false" | "true") as flag) ] ->
         Ok { origin with lto = Bool.of_string flag }
     | _ ->
