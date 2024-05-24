@@ -9,7 +9,7 @@
 
 (authors "Mihail Lopatin <dx3mod@bk.ru>")
 
-(maintainers "Maintainer Name")
+; (maintainers "Maintainer Name")
 
 (license MIT)
 
@@ -19,7 +19,7 @@
  (name bavar)
  (synopsis "AVR C/C++ project builder")
  (description "A domain-specific build system for AVR C/C++ projects")
- (depends ocaml dune sexplib ppx_deriving decoders-sexplib re globlon base)
+ (depends ocaml dune sexplib ppx_deriving decoders-sexplib re globlon base fpath)
  (tags
   (labavrplatform avr build-system)))
 

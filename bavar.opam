@@ -2,7 +2,6 @@
 opam-version: "2.0"
 synopsis: "AVR C/C++ project builder"
 description: "A domain-specific build system for AVR C/C++ projects"
-maintainer: ["Maintainer Name"]
 authors: ["Mihail Lopatin <dx3mod@bk.ru>"]
 license: "MIT"
 tags: ["labavrplatform" "avr" "build-system"]
@@ -18,6 +17,7 @@ depends: [
   "re"
   "globlon"
   "base"
+  "fpath"
   "odoc" {with-doc}
 ]
 build: [
