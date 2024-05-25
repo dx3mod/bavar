@@ -10,8 +10,3 @@ let globs ~path =
     | Some files' -> Array.append files' files
   in
   List.fold ~f ~init:[||]
-
-let to_fpath_exn path =
-  match Fpath.of_string path with
-  | Error (`Msg msg) -> failwith msg
-  | Ok path -> path

@@ -38,6 +38,7 @@ type t = {
   lang : string option;
   strict : bool; [@default true]
   envs : (string * string) list; [@default []]
+  depends : Dependency.t list; [@default []]
 }
 [@@deriving show, make]
 
@@ -67,6 +68,7 @@ let rec of_sexp sexp =
     let* program_port = D.field_opt "program.port" D.string in
 
     let* envs = D.field_opt_or "envs" ~default:[] envs_decoder in
+    let* depends = D.field_opt_or "depends" ~default:[] depends_decoder in
 
     D.succeed
       {
@@ -78,6 +80,7 @@ let rec of_sexp sexp =
         lang;
         strict;
         envs;
+        depends;
       }
   in
 
@@ -149,6 +152,17 @@ and envs_decoder =
       | Ok x -> D.succeed x
       | Error e -> D.fail e)
   | _ -> failwith "envs decoder"
+
+and depends_decoder =
+  D.value >>= function
+  | Sexp.Atom value -> D.succeed [ Dependency.parse value ]
+  | Sexp.List atoms ->
+      D.succeed
+      @@ List.map
+           (function
+             | Sexp.Atom value -> Dependency.parse value
+             | _ -> failwith "invalid dependency value!")
+           atoms
 
 let of_file filename =
   let open Base in

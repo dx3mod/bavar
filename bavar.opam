@@ -17,7 +17,6 @@ depends: [
   "re"
   "globlon"
   "base"
-  "fpath"
   "odoc" {with-doc}
 ]
 build: [

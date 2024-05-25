@@ -1,4 +1,4 @@
-type t = { root_dir : Fpath.t; config : Project_config.t } [@@deriving show]
+type t = { root_dir : string; config : Project_config.t }
+[@@deriving show, make]
 
-let make ~root_dir ~config = { root_dir = Util.to_fpath_exn root_dir; config }
-let source_dir ctx = Fpath.(ctx.root_dir / ctx.config.layout.root_dir)
+let source_dir ctx = Filename.concat ctx.root_dir ctx.config.layout.root_dir
