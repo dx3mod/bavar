@@ -9,24 +9,21 @@ let rec resolve_avr_project (ctx : Build_context.t) =
   let c_files = globs [ "*.{c,cpp,cxx,s}"; "**/*.{c,cpp,cxx,s}" ] in
   let h_files = globs [ "*.{h,hpp,hxx}"; "**/*.{h,hpp,hxx}" ] in
 
-  let c_files, c_includes =
-    Array.partition_tf c_files ~f:(fun filename ->
-        match String.rsplit2_exn ~on:'.' filename with
-        | _, "s" -> true
-        | name, _
-          when String.equal (Stdlib.Filename.basename name) "main"
-               || String.equal (Stdlib.Filename.basename name) ctx.config.name
-          ->
-            true
-        | name, _ -> Array.exists h_files ~f:(String.is_prefix ~prefix:name))
-  in
-
+  (* let c_files, c_includes =
+       Array.partition_tf c_files ~f:(fun filename ->
+           match String.rsplit2_exn ~on:'.' filename with
+           | _, "s" -> true
+           | name, _
+             when String.equal (Stdlib.Filename.basename name) "main"
+                  || String.equal (Stdlib.Filename.basename name) ctx.config.name
+             ->
+               true
+           | name, _ -> Array.exists h_files ~f:(String.is_prefix ~prefix:name))
+     in *)
   {
     main =
       Project_unit.make ~kind:(`Bavar ctx.config) ~path:ctx.root_dir
-        ~files:c_files
-        ~includes:(Array.concat [ c_includes; h_files ])
-        ();
+        ~files:c_files ~includes:(Array.concat [ h_files ]) ();
     depends = resolve_dependencies ctx;
   }
 

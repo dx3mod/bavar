@@ -19,7 +19,7 @@
  (name bavar)
  (synopsis "AVR C/C++ project builder")
  (description "A domain-specific build system for AVR C/C++ projects")
- (depends ocaml dune sexplib ppx_deriving decoders-sexplib re globlon base)
+ (depends ocaml dune sexplib ppx_deriving decoders-sexplib re globlon base spawn)
  (tags
   (labavrplatform avr build-system)))
 

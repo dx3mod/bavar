@@ -17,6 +17,7 @@ depends: [
   "re"
   "globlon"
   "base"
+  "spawn"
   "odoc" {with-doc}
 ]
 build: [
