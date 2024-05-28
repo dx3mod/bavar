@@ -1,4 +1,5 @@
 open Base
+module Filename = Stdlib.Filename
 
 let strict_flags = [| "-Wall"; "-Wextra"; "-Wpedantic" |]
 
@@ -49,8 +50,8 @@ let rec build (ctx : Build_context.t) (project : Resolver.avr_project) mode =
   let is_cpp = match lang with `C -> false | _ -> true in
 
   let build_dir =
-    Stdlib.Filename.concat ctx.root_dir
-    @@ Stdlib.Filename.concat ctx.config.layout.out_dir
+    Filename.concat ctx.root_dir
+    @@ Filename.concat ctx.config.layout.out_dir
          (match mode with Release -> "release" | Debug -> "debug")
   in
 
@@ -61,8 +62,8 @@ let rec build (ctx : Build_context.t) (project : Resolver.avr_project) mode =
 
   let depends =
     List.filter_map project.depends ~f:(fun proj_unit ->
-        let hash_name = String.hash proj_unit.path in
-        let output = sprintf "%s/%d.o" build_dir hash_name in
+        let hash_name = Stdlib.Digest.(to_hex @@ string proj_unit.path) in
+        let output = sprintf "%s/%s.o" build_dir hash_name in
 
         (* TODO: implement more advance *)
         if Stdlib.Sys.file_exists output then None
@@ -90,10 +91,7 @@ let rec build (ctx : Build_context.t) (project : Resolver.avr_project) mode =
             (sprintf "%s/%s/firmware.elf" ctx.config.layout.out_dir
                (match mode with Release -> "release" | Debug -> "debug"));
         List.to_array build_options.custom;
-        Array.filter_map (Stdlib.Sys.readdir build_dir) ~f:(fun filename ->
-            if String.is_suffix ~suffix:".o" filename then
-              Some (Stdlib.Filename.concat build_dir filename)
-            else None);
+        find_object_files build_dir;
       ]
   in
 
@@ -110,14 +108,14 @@ and find_entry_file ~proj_name files =
 
   Array.find_map
     ~f:(fun filename ->
-      match
-        Base.String.rsplit2_exn ~on:'.' @@ Stdlib.Filename.basename filename
-      with
+      match Base.String.rsplit2_exn ~on:'.' @@ Filename.basename filename with
       | "main", ext -> Some (`Executable, check_ext ext)
       | name, ext when String.equal name proj_name ->
           Some (`Library, check_ext ext)
       | _ -> None)
     files
+
+and find_object_files path = Util.globs ~path [ "*.o" ]
 
 and cc ~cwd ~args ~cpp =
   let prog = if cpp then "avr-g++" else "avr-gcc" in
