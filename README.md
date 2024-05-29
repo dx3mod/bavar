@@ -5,12 +5,13 @@ It is developed as part of the [LabAvrPlatform](https://github.com/dx3mod/LabAvr
 
 The project is currently in active development. :construction:
 
-## Usage 
+## Usage
 
 Initialize a new AVR C project.
+
 ```console
 $ bavar init -target attiny2313a blink
-``` 
+```
 
 ```
 blink/
@@ -20,12 +21,23 @@ blink/
 ```
 
 Configuration file `LabAvrProject`.
+
 ```lisp
 (name blink)
 (target attiny2313a 1mhz)
 ```
 
 Compile the current project (release by default).
+
 ```console
 $ bavar build
+```
+
+## Installation
+
+#### From source
+
+```console
+$ git clone https://github.com/dx3mod/bavar.git
+$ opam install ./bavar
 ```
