@@ -11,12 +11,13 @@ bug-reports: "https://github.com/dx3mod/bavar/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.15"}
+  "core"
+  "core_unix"
   "sexplib"
   "ppx_deriving"
   "decoders-sexplib"
   "re"
   "globlon"
-  "base"
   "spawn"
   "odoc" {with-doc}
 ]
