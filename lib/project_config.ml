@@ -164,8 +164,18 @@ and depends_decoder =
              | _ -> failwith "invalid dependency value!")
            atoms
 
+exception Read_error of { message : string; path : string }
+
+(** Raises [Read_error], [Sys_error]. *)
 let of_file filename =
-  let open Base in
-  let file = In_channel.open_text filename in
-  let sexp = In_channel.input_all file |> Sexplib.Sexp.of_string_many in
-  of_sexp @@ Sexplib.Sexp.List sexp
+  let read_error message = Read_error { message; path = filename } in
+
+  try
+    let file = In_channel.open_text filename in
+    let sexp = In_channel.input_all file |> Sexplib.Sexp.of_string_many in
+
+    match of_sexp (Sexplib.Sexp.List sexp) with
+    | Ok config -> config
+    | Error err -> raise (read_error @@ Format.asprintf "%a" D.pp_error err)
+  with Parsexp.Parse_error e ->
+    raise (read_error @@ Parsexp.Parse_error.message e)
