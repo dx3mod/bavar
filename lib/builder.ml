@@ -6,7 +6,6 @@ type build_mode = Release | Debug
 
 let rec cc_args ~files ~includes ~options ~target ~strict ~output ~headers
     ~custom =
-  let open Printf in
   let open Project_config in
   Array.concat
     [
@@ -64,8 +63,17 @@ let rec build (ctx : Build_context.t) (project : Resolver.avr_project) mode =
         let hash_name = Stdlib.Digest.(to_hex @@ string proj_unit.path) in
         let output = sprintf "%s/%s.o" build_dir hash_name in
 
-        (* TODO: implement more advance *)
-        if Stdlib.Sys.file_exists output then None
+        let last_modification_time_of_files =
+          Array.fold proj_unit.files ~init:0.0 ~f:(fun last_time filename ->
+              Float.max last_time @@ (Core_unix.stat filename).st_mtime)
+        in
+
+        if
+          Sys_unix.file_exists_exn output
+          && Float.(
+               (Core_unix.stat output).st_mtime
+               > last_modification_time_of_files)
+        then None
         else
           match proj_unit.kind with
           | `External ->
