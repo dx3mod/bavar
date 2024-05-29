@@ -19,6 +19,9 @@ let compile_the_project ~root_dir ~target () =
 
       let avr_project = Resolver.resolve_avr_project build_context in
 
+      let out_dir = Filename.concat root_dir config.layout.out_dir in
+      Core_unix.mkdir_p (Filename.concat out_dir "release");
+
       Builder.build build_context avr_project Builder.Release
       |> List.iter ~f:(fun u ->
              Array.iter ~f:(Printf.printf "%s ") u;

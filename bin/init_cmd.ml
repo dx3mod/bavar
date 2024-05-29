@@ -35,7 +35,7 @@ let rec initialize_new_project ~path ~target ~forced () =
 }
 |});
 
-    printf "Success: initialized project named '%s'\n" proj_name
+    printf "The '%s' project has been successfully initialized.\n" proj_name
 
 and entry_to_dir path =
   Core_unix.mkdir_p path;

@@ -1,5 +1,4 @@
-open Base
-module Filename = Stdlib.Filename
+open Core
 
 let strict_flags = [| "-Wall"; "-Wextra"; "-Wpedantic" |]
 
@@ -122,4 +121,4 @@ and cc ~cwd ~args ~cpp =
 
   Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:("/usr/bin/" ^ prog)
     ~argv:(prog :: args)
-  |> Unix.waitpid []
+  |> Caml_unix.waitpid []
