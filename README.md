@@ -33,6 +33,8 @@ Compile the current project (release by default).
 $ bavar build
 ```
 
+[Read the user guide.](./GUIDE.md)
+
 ## Installation
 
 You should already have the AVR GCC toolchain and the avrdude utility installed on your system. Bavar does not know how to manage environments for you.
