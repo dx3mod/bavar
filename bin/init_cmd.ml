@@ -35,7 +35,10 @@ let rec initialize_new_project ~path ~target ~forced () =
 }
 |});
 
-    printf "The '%s' project has been successfully initialized.\n" proj_name
+    printf "Entering directory '%s'\n" path;
+    Ocolor_format.printf
+      "@{<green>Success@}: initialized project @{<blue>%s@}\n" proj_name;
+    Ocolor_format.pp_print_flush Ocolor_format.std_formatter ()
 
 and entry_to_dir path =
   Core_unix.mkdir_p path;
