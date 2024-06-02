@@ -3,7 +3,7 @@ open Bavar
 
 let current_path = Core_unix.getcwd ()
 
-let compile_the_project ~root_dir ~target ~debug () =
+let rec compile_the_project ~root_dir ~target ~debug () =
   let config_file_path = Filename.concat root_dir "LabAvrProject" in
   let _ = target in
 
@@ -25,8 +25,7 @@ let compile_the_project ~root_dir ~target ~debug () =
         (Filename.concat root_dir "compile_flags.txt")
         (Clangd.to_compile_flags_txt main_args);
 
-      Ocolor_format.printf "[@{<green> DEV @}] generated 'compile_flags.txt'\n";
-      Ocolor_format.pp_print_flush Ocolor_format.std_formatter ()
+      display_section_sizes @@ Builder.Toolchain.size main_args.output
     with
     | Bavar.Project_config.Read_error err ->
         Printf.eprintf "Failed to read config: %s.\nAt '%s' file.\n" err.message
@@ -40,6 +39,15 @@ let compile_the_project ~root_dir ~target ~debug () =
       (if Filename.equal root_dir current_path then "current directory"
        else root_dir);
     exit 1)
+
+and display_section_sizes section_sizes =
+  Ocolor_format.printf "[@{<blue> MEMORY USAGE @}] %s bytes\n\n"
+    section_sizes.all;
+  Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
+
+  printf " .text  :        %s bytes\n" section_sizes.text;
+  printf " .data  :        %s bytes\n" section_sizes.data;
+  printf " .bss   :        %s bytes\n" section_sizes.bss
 
 let command =
   Command.basic ~summary:"compile the current project"

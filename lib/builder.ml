@@ -7,7 +7,7 @@ module Toolchain = struct
   let cc ~cwd ~cpp args =
     let prog = if cpp then "avr-g++" else "avr-gcc" in
 
-    Ocolor_format.printf "[@{<green> %s @}] %s\n\n" (String.uppercase prog)
+    Ocolor_format.printf "[@{<cyan> %s @}] %s\n\n" (String.uppercase prog)
       (String.concat ~sep:" " args);
     Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
 
@@ -15,6 +15,25 @@ module Toolchain = struct
     Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:("/usr/bin/" ^ prog)
       ~argv:(prog :: args)
     |> Caml_unix.waitpid []
+
+  type section_sizes = {
+    text : string;
+    data : string;
+    bss : string;
+    all : string;
+  }
+
+  let size path =
+    let values =
+      Core_unix.open_process_in (sprintf "avr-size %s" path)
+      |> In_channel.input_lines |> List.last_exn |> String.split ~on:' '
+      |> List.filter_map ~f:(fun c ->
+             if String.is_empty c then None else Some (Stdlib.String.trim c))
+    in
+
+    match values with
+    | [ text; data; bss; dec; _ ] -> { text; data; bss; all = dec }
+    | _ -> failwith "failed to parse avr-size output"
 end
 
 module Compiler_args = struct
