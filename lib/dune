@@ -8,6 +8,7 @@
   decoders-sexplib
   globlon
   re
-  spawn)
+  spawn
+  ocolor)
  (preprocess
   (pps ppx_deriving.show ppx_deriving.make ppx_deriving.ord)))

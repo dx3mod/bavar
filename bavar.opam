@@ -20,6 +20,7 @@ depends: [
   "re"
   "globlon"
   "spawn"
+  "ocolor"
   "odoc" {with-doc}
 ]
 build: [

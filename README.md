@@ -37,6 +37,8 @@ $ bavar build
 
 You should already have the AVR GCC toolchain and the avrdude utility installed on your system. Bavar does not know how to manage environments for you.
 
+And know only works on Linux/*nix systems.
+
 #### From source
 
 ```console

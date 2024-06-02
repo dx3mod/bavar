@@ -1,67 +1,124 @@
 open Core
 
-let strict_flags = [| "-Wall"; "-Wextra"; "-Wpedantic" |]
+let strict_flags = [ "-Wall"; "-Wextra"; "-Wpedantic" ]
+let default_includes = [ "avr/io.h"; "stdint.h" ]
 
-type build_mode = Release | Debug
+module Toolchain = struct
+  let cc ~cwd ~cpp args =
+    let prog = if cpp then "avr-g++" else "avr-gcc" in
 
-let rec cc_args ~files ~includes ~options ~target ~strict ~output ~headers
-    ~custom =
-  let open Project_config in
-  Array.concat
-    [
-      (* options *)
-      Option.value_map target ~default:[||] ~f:(fun target ->
-          match target with
-          | { mcu; hz = Some hz } ->
-              [| sprintf "-mmcu=%s" mcu; sprintf "-DF_CPU=%d" hz |]
-          | { mcu; hz = None } -> [| sprintf "-mmcu=%s" mcu |]);
-      (if strict then strict_flags else [||]);
-      (if options.lto then [| "-flto" |] else [||]);
-      (if options.no_std then [| "-e"; "_start"; "-nostdlib" |] else [||]);
-      [| sprintf "-O%c" options.opt_level |];
-      List.map headers ~f:(sprintf "-I%s") |> List.to_array;
+    Ocolor_format.printf "[@{<green> %s @}] %s\n\n" (String.uppercase prog)
+      (String.concat ~sep:" " args);
+    Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
+
+    (* FIXME: works only on Linux/*nix now *)
+    Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:("/usr/bin/" ^ prog)
+      ~argv:(prog :: args)
+    |> Caml_unix.waitpid []
+end
+
+module Compiler_args = struct
+  open Project_config
+
+  type t = {
+    target : target option;
+    build_options : build_options;
+    strict : bool;
+    headers : string list;
+    custom : string list;
+    files : string array;
+    includes : string array;
+    output : string;
+    debug : bool;
+  }
+
+  let make ~target ~build_options ~strict ~headers ~custom ~files ~includes
+      ~output ~debug =
+    {
+      target;
+      build_options;
+      strict;
+      headers;
       custom;
-      (* files *)
       files;
-      includes_to_cc_options includes;
-      (* output *)
-      [| "-o"; output |];
-    ]
+      includes;
+      output;
+      debug;
+    }
 
-and includes_to_cc_options =
-  Array.fold ~init:[||] ~f:(fun files filename ->
-      Array.append files [| "-include"; filename |])
+  let of_target =
+    let f = function
+      | { mcu; hz = Some hz } ->
+          [ sprintf "-mmcu=%s" (String.lowercase mcu); sprintf "-DF_CPU=%d" hz ]
+      | { mcu; hz = None } -> [ sprintf "-mmcu=%s" (String.lowercase mcu) ]
+    in
+    Option.value_map ~default:[] ~f
 
-let rec build (ctx : Build_context.t) (project : Resolver.avr_project) mode =
+  let of_headers = List.fold ~init:[] ~f:(fun list h -> "-I" :: h :: list)
+
+  let of_build_options { lto; no_std; opt_level; _ } =
+    List.concat
+      [
+        (if lto then [ "-flto" ] else []);
+        (if no_std then [ "-e"; "_start"; "-nostdlib" ] else []);
+        [ sprintf "-O%c" opt_level ];
+      ]
+
+  let to_args_options t =
+    List.concat
+      [
+        of_target t.target;
+        (if t.strict then strict_flags else []);
+        (if t.debug then [ "-g" ] else []);
+        of_build_options t.build_options;
+        of_headers t.headers;
+        of_headers default_includes;
+        t.custom;
+        t.build_options.custom;
+      ]
+
+  let to_includes =
+    Array.fold ~init:[] ~f:(fun list h -> "-include" :: h :: list)
+
+  let to_args t =
+    List.concat
+      [
+        to_args_options t;
+        (* files *)
+        Array.to_list t.files;
+        to_includes t.includes;
+        [ "-o"; t.output ];
+      ]
+end
+
+let rec compile ~(ctx : Build_context.t) (project : Resolver.avr_project) ~mode
+    =
   let open Printf in
-  let build_options =
+  let build_options, debug =
     match mode with
-    | Release -> ctx.config.build.release
-    | Debug -> ctx.config.build.debug
+    | `Release -> (ctx.config.build.release, false)
+    | `Debug -> (ctx.config.build.debug, true)
   in
 
-  let _proj_kind, lang =
-    find_entry_file project.main.files ~proj_name:ctx.config.name
-    |> Option.value_exn ~message:"not found entry point file at project!"
+  let is_cpp =
+    let _proj_kind, lang =
+      find_entry_file project.main.files ~proj_name:ctx.config.name
+      |> Option.value_exn ~message:"not found entry point file at project!"
+    in
+    match lang with `C -> false | _ -> true
   in
 
-  let is_cpp = match lang with `C -> false | _ -> true in
-
-  let build_dir =
-    Filename.concat ctx.root_dir
-    @@ Filename.concat ctx.config.layout.out_dir
-         (match mode with Release -> "release" | Debug -> "debug")
-  in
-
-  let cc_depend_unit =
-    cc_args ~options:build_options ~target:ctx.config.target
-      ~strict:ctx.config.strict ~custom:[| "-c" |]
-  in
+  let output_dir = Build_context.output_dir ctx mode in
 
   let depends =
+    let depend_args =
+      Compiler_args.make ~target:ctx.config.target ~build_options
+        ~strict:ctx.config.strict ~custom:[ "-c" ] ~debug
+    in
+
     List.filter_map project.depends ~f:(fun proj_unit ->
         let hash_name = Stdlib.Digest.(to_hex @@ string proj_unit.path) in
-        let output = sprintf "%s/%s.o" build_dir hash_name in
+        let output = sprintf "%s/%s.o" output_dir hash_name in
 
         let last_modification_time_of_files =
           Array.fold proj_unit.files ~init:0.0 ~f:(fun last_time filename ->
@@ -78,33 +135,37 @@ let rec build (ctx : Build_context.t) (project : Resolver.avr_project) mode =
           match proj_unit.kind with
           | `External ->
               Some
-                (cc_depend_unit ~includes:[||] ~files:proj_unit.files
+                (depend_args ~includes:[||] ~files:proj_unit.files
                    ~headers:[ proj_unit.path ] ~output)
           | _ -> failwith "not implement yet")
   in
 
   List.iter
     ~f:(fun args ->
-      cc ~cpp:is_cpp ~cwd:ctx.root_dir ~args:(List.of_array args) |> ignore)
+      Toolchain.cc ~cpp:is_cpp ~cwd:ctx.root_dir (Compiler_args.to_args args)
+      |> ignore)
     depends;
 
   let main_args =
-    Array.concat
-      [
-        cc_args ~files:project.main.files ~includes:project.main.includes
-          ~options:build_options ~target:ctx.config.target
-          ~strict:ctx.config.strict ~headers:[ project.main.path ] ~custom:[||]
-          ~output:
-            (sprintf "%s/%s/firmware.elf" ctx.config.layout.out_dir
-               (match mode with Release -> "release" | Debug -> "debug"));
-        List.to_array build_options.custom;
-        find_object_files build_dir;
-      ]
+    Compiler_args.make ~target:ctx.config.target ~build_options
+      ~strict:ctx.config.strict
+      ~headers:
+        (List.append
+           [
+             project.main.path;
+             Util.join_paths [ ctx.root_dir; ctx.config.layout.root_dir ];
+           ]
+           (List.map project.depends ~f:(fun p -> p.path)))
+      ~custom:[]
+      ~files:(Array.append project.main.files @@ find_object_files output_dir)
+      ~includes:project.main.includes ~debug
+      ~output:(sprintf "%s/firmware.elf" output_dir)
   in
 
-  cc ~cwd:ctx.root_dir ~args:(List.of_array main_args) ~cpp:is_cpp |> ignore;
+  Toolchain.cc ~cwd:ctx.root_dir (Compiler_args.to_args main_args) ~cpp:is_cpp
+  |> ignore;
 
-  List.append [ main_args ] depends
+  (main_args, depends)
 
 and find_entry_file ~proj_name files =
   let check_ext = function
@@ -123,10 +184,3 @@ and find_entry_file ~proj_name files =
     files
 
 and find_object_files path = Util.globs ~path [ "*.o" ]
-
-and cc ~cwd ~args ~cpp =
-  let prog = if cpp then "avr-g++" else "avr-gcc" in
-
-  Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:("/usr/bin/" ^ prog)
-    ~argv:(prog :: args)
-  |> Caml_unix.waitpid []

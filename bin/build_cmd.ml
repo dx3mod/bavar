@@ -5,32 +5,28 @@ let current_path = Core_unix.getcwd ()
 
 let compile_the_project ~root_dir ~target ~debug () =
   let config_file_path = Filename.concat root_dir "LabAvrProject" in
+  let _ = target in
 
   if Sys_unix.file_exists_exn config_file_path then (
-    printf "target: %s\nroot_dir: %s\n"
-      (Option.value target ~default:"none")
-      root_dir;
-
-    Stdlib.print_newline ();
-
     try
       let config = Project_config.of_file config_file_path in
       let build_context = Build_context.make ~root_dir ~config in
-      let build_profile = if debug then Builder.Debug else Builder.Release in
+      let build_profile = if debug then `Debug else `Release in
 
       let avr_project = Resolver.resolve_avr_project build_context in
 
-      let out_dir = Filename.concat root_dir config.layout.out_dir in
-      Core_unix.mkdir_p
-        (Filename.concat out_dir
-           (match build_profile with
-           | Builder.Debug -> "debug"
-           | Builder.Release -> "release"));
+      Core_unix.mkdir_p @@ Build_context.output_dir build_context build_profile;
 
-      Builder.build build_context avr_project build_profile
-      |> List.iter ~f:(fun u ->
-             Array.iter ~f:(Printf.printf "%s ") u;
-             print_endline "\n")
+      let main_args, _ =
+        Builder.compile avr_project ~ctx:build_context ~mode:build_profile
+      in
+
+      Out_channel.write_lines
+        (Filename.concat root_dir "compile_flags.txt")
+        (Clangd.to_compile_flags_txt main_args);
+
+      Ocolor_format.printf "[@{<green> DEV @}] generated 'compile_flags.txt'\n";
+      Ocolor_format.pp_print_flush Ocolor_format.std_formatter ()
     with
     | Bavar.Project_config.Read_error err ->
         Printf.eprintf "Failed to read config: %s.\nAt '%s' file.\n" err.message

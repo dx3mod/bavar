@@ -30,7 +30,8 @@
   decoders-sexplib
   re
   globlon
-  spawn)
+  spawn
+  ocolor)
  (tags
   (labavrplatform avr build-system)))
 
