@@ -20,6 +20,11 @@ type layout = {
 }
 [@@deriving show, make]
 
+type dev_options = { clangd_support : bool [@default false] }
+[@@deriving show, make]
+
+let dev_options_default = make_dev_options ()
+
 type build_configurations = { release : build_options; debug : build_options }
 [@@deriving show]
 
@@ -39,6 +44,7 @@ type t = {
   strict : bool; [@default true]
   envs : (string * string) list; [@default []]
   depends : Dependency.t list; [@default []]
+  dev : dev_options; [@default dev_options_default]
 }
 [@@deriving show, make]
 
@@ -70,6 +76,11 @@ let rec of_sexp sexp =
     let* envs = D.field_opt_or "envs" ~default:[] envs_decoder in
     let* depends = D.field_opt_or "depends" ~default:[] depends_decoder in
 
+    let* dev_options =
+      D.field_opt_or "dev" ~default:dev_options_default
+        (dev_options_decoder dev_options_default)
+    in
+
     D.succeed
       {
         name;
@@ -81,6 +92,7 @@ let rec of_sexp sexp =
         strict;
         envs;
         depends;
+        dev = dev_options;
       }
   in
 
@@ -163,6 +175,25 @@ and depends_decoder =
              | Sexp.Atom value -> Dependency.parse value
              | _ -> failwith "invalid dependency value!")
            atoms
+
+and dev_options_decoder default =
+  let open Base in
+  let parse _ = function
+    | Sexp.Atom ("clangd" | "compile_flags.txt") -> Ok { clangd_support = true }
+    | _ ->
+        Error
+          (Decoders.Error.make
+             "Invalid dev option. Expected 'clangd' or 'compile_flags.txt'.")
+  in
+
+  let* value = D.value in
+  match
+    match value with
+    | Sexp.Atom _ as atom -> parse default atom
+    | Sexp.List xs -> Base.List.fold_result xs ~init:default ~f:parse
+  with
+  | Ok dev_options -> D.succeed dev_options
+  | Error msg -> D.fail_with msg
 
 exception Read_error of { message : string; path : string }
 

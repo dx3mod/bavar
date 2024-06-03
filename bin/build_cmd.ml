@@ -5,7 +5,6 @@ let current_path = Core_unix.getcwd ()
 
 let rec compile_the_project ~root_dir ~target ~debug () =
   let config_file_path = Filename.concat root_dir "LabAvrProject" in
-  let _ = target in
 
   if Sys_unix.file_exists_exn config_file_path then (
     try
@@ -17,15 +16,20 @@ let rec compile_the_project ~root_dir ~target ~debug () =
 
       Core_unix.mkdir_p @@ Build_context.output_dir build_context build_profile;
 
-      let main_args, _ =
-        Builder.compile avr_project ~ctx:build_context ~mode:build_profile
+      let main, depends =
+        Builder.get_compile_args avr_project ~ctx:build_context
+          ~mode:build_profile
       in
 
-      Out_channel.write_lines
-        (Filename.concat root_dir "compile_flags.txt")
-        (Clangd.to_compile_flags_txt main_args);
+      match target with
+      | Some "@clangd" -> generate_compile_flags_txt ~root_dir main
+      | Some _ -> failwith "invalid target value for build!"
+      | None ->
+          Builder.compile ~ctx:build_context main depends;
+          display_section_sizes @@ Builder.Toolchain.size main.output;
 
-      display_section_sizes @@ Builder.Toolchain.size main_args.output
+          if config.dev.clangd_support then
+            generate_compile_flags_txt ~root_dir main
     with
     | Bavar.Project_config.Read_error err ->
         Printf.eprintf "Failed to read config: %s.\nAt '%s' file.\n" err.message
@@ -48,6 +52,11 @@ and display_section_sizes section_sizes =
   printf " .text  :        %s bytes\n" section_sizes.text;
   printf " .data  :        %s bytes\n" section_sizes.data;
   printf " .bss   :        %s bytes\n" section_sizes.bss
+
+and generate_compile_flags_txt ~root_dir args =
+  Out_channel.write_lines
+    (Filename.concat root_dir "compile_flags.txt")
+    (Clangd.to_compile_flags_txt args)
 
 let command =
   Command.basic ~summary:"compile the current project"

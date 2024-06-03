@@ -110,21 +110,13 @@ module Compiler_args = struct
       ]
 end
 
-let rec compile ~(ctx : Build_context.t) (project : Resolver.avr_project) ~mode
-    =
+let rec get_compile_args ~(ctx : Build_context.t)
+    (project : Resolver.avr_project) ~mode =
   let open Printf in
   let build_options, debug =
     match mode with
     | `Release -> (ctx.config.build.release, false)
     | `Debug -> (ctx.config.build.debug, true)
-  in
-
-  let is_cpp =
-    let _proj_kind, lang =
-      find_entry_file project.main.files ~proj_name:ctx.config.name
-      |> Option.value_exn ~message:"not found entry point file at project!"
-    in
-    match lang with `C -> false | _ -> true
   in
 
   let output_dir = Build_context.output_dir ctx mode in
@@ -159,12 +151,6 @@ let rec compile ~(ctx : Build_context.t) (project : Resolver.avr_project) ~mode
           | _ -> failwith "not implement yet")
   in
 
-  List.iter
-    ~f:(fun args ->
-      Toolchain.cc ~cpp:is_cpp ~cwd:ctx.root_dir (Compiler_args.to_args args)
-      |> ignore)
-    depends;
-
   let main_args =
     Compiler_args.make ~target:ctx.config.target ~build_options
       ~strict:ctx.config.strict
@@ -180,9 +166,6 @@ let rec compile ~(ctx : Build_context.t) (project : Resolver.avr_project) ~mode
       ~includes:project.main.includes ~debug
       ~output:(sprintf "%s/firmware.elf" output_dir)
   in
-
-  Toolchain.cc ~cwd:ctx.root_dir (Compiler_args.to_args main_args) ~cpp:is_cpp
-  |> ignore;
 
   (main_args, depends)
 
@@ -203,3 +186,21 @@ and find_entry_file ~proj_name files =
     files
 
 and find_object_files path = Util.globs ~path [ "*.o" ]
+
+let compile ~(ctx : Build_context.t) (main : Compiler_args.t) depends =
+  let is_cpp =
+    let _proj_kind, lang =
+      find_entry_file main.files ~proj_name:ctx.config.name
+      |> Option.value_exn ~message:"not found entry point file at project!"
+    in
+    match lang with `C -> false | _ -> true
+  in
+
+  List.iter
+    ~f:(fun args ->
+      Toolchain.cc ~cpp:is_cpp ~cwd:ctx.root_dir (Compiler_args.to_args args)
+      |> ignore)
+    depends;
+
+  Toolchain.cc ~cwd:ctx.root_dir (Compiler_args.to_args main) ~cpp:is_cpp
+  |> ignore

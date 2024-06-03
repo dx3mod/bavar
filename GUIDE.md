@@ -31,6 +31,9 @@
 ;; (libraries
 ;;   ./local/dir                    ; import local project
 ;;   https://github.com/user/repo)  ; auto-download from Internet
+
+(dev <opts>)
+;; clangd or compile_flags.txt  - generate config for clangd 
 ```
 
 ## Project Layout
