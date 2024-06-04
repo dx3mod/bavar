@@ -1,7 +1,7 @@
 open Core
 open Bavar
 
-let rec initialize_new_project ~path ~target ~forced () =
+let rec initialize_new_project ~path ~target ~forced ~cpp () =
   if (not forced) && Sys_unix.is_directory_exn path then (
     eprintf "The '%s' directory already exist! Can't initialize a project.\n"
       path;
@@ -24,16 +24,9 @@ let rec initialize_new_project ~path ~target ~forced () =
 
     Out_channel.with_file "LabAvrProject" ~f:(fun ch ->
         fprintf ch "(name %s)\n" proj_name;
-        Option.iter target ~f:(fprintf ch "(target %s)\n");
+        Option.iter target ~f:(fprintf ch "(target %s)\n"));
 
-        Out_channel.write_all
-          (Filename.concat config.layout.root_dir "main.c")
-          ~data:{|int main(void) {
-  while (1) {
-    // code
-  }
-}
-|});
+    write_main_c ~root_dir:path ~cpp;
 
     printf "Entering directory '%s'\n" path;
     Ocolor_format.printf
@@ -44,10 +37,20 @@ and entry_to_dir path =
   Core_unix.mkdir_p path;
   Core_unix.chdir path
 
+and write_main_c ~root_dir ~cpp =
+  let filename =
+    ("main." ^ if cpp then "cpp" else "c") |> Filename.concat root_dir
+  in
+
+  let contents = "int main(void) {\n  while (1) {\n  }\n}\n" in
+
+  Out_channel.write_all filename ~data:contents
+
 let command =
   Command.basic ~summary:"initialize a new project"
     (let%map_open.Command target =
        flag "-target" (optional string) ~doc:"mcu:freq MCU and frequency values"
      and force = flag "-f" no_arg ~doc:"force"
+     and cpp = flag "-cpp" no_arg ~doc:"as C++ project"
      and path = anon ("path" %: string) in
-     initialize_new_project ~path ~target ~forced:force)
+     initialize_new_project ~path ~target ~forced:force ~cpp)
