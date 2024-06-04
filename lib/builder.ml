@@ -4,17 +4,26 @@ let strict_flags = [ "-Wall"; "-Wextra"; "-Wpedantic" ]
 let default_includes = [ "avr/io.h"; "stdint.h" ]
 
 module Toolchain = struct
-  let cc ~cwd ~cpp args =
-    let prog = if cpp then "avr-g++" else "avr-gcc" in
+  exception Compilation_error of int
+
+  let cc ~cwd ~lang args =
+    let prog = match lang with `C | `Asm -> "avr-gcc" | `Cpp -> "avr-g++" in
 
     Ocolor_format.printf "[@{<cyan> %s @}] %s\n\n" (String.uppercase prog)
       (String.concat ~sep:" " args);
     Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
 
     (* FIXME: works only on Linux/*nix now *)
-    Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:("/usr/bin/" ^ prog)
-      ~argv:(prog :: args)
-    |> Caml_unix.waitpid []
+    let _, status =
+      Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd)
+        ~prog:("/usr/bin/" ^ prog) ~argv:(prog :: args)
+      |> Caml_unix.waitpid []
+    in
+
+    match status with
+    | WEXITED 0 -> ()
+    | WEXITED code -> raise (Compilation_error code)
+    | _ -> failwith "failed process status"
 
   type section_sizes = {
     text : string;
@@ -173,6 +182,7 @@ and find_entry_file ~proj_name files =
   let check_ext = function
     | "c" -> `C
     | "cpp" | "cxx" -> `Cpp
+    | "s" | "asm" -> `Asm
     | _ -> failwith "invalid file ext!"
   in
 
@@ -188,19 +198,13 @@ and find_entry_file ~proj_name files =
 and find_object_files path = Util.globs ~path [ "*.o" ]
 
 let compile ~(ctx : Build_context.t) (main : Compiler_args.t) depends =
-  let is_cpp =
-    let _proj_kind, lang =
-      find_entry_file main.files ~proj_name:ctx.config.name
-      |> Option.value_exn ~message:"not found entry point file at project!"
-    in
-    match lang with `C -> false | _ -> true
+  let _proj_kind, lang =
+    find_entry_file main.files ~proj_name:ctx.config.name
+    |> Option.value_exn ~message:"not found entry point file at project!"
   in
 
-  List.iter
-    ~f:(fun args ->
-      Toolchain.cc ~cpp:is_cpp ~cwd:ctx.root_dir (Compiler_args.to_args args)
-      |> ignore)
-    depends;
+  let cc = Toolchain.cc ~lang ~cwd:ctx.root_dir in
 
-  Toolchain.cc ~cwd:ctx.root_dir (Compiler_args.to_args main) ~cpp:is_cpp
-  |> ignore
+  List.iter depends ~f:(fun args -> cc @@ Compiler_args.to_args args |> ignore);
+
+  cc @@ Compiler_args.to_args main

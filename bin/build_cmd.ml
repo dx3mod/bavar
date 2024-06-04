@@ -31,12 +31,15 @@ let rec compile_the_project ~root_dir ~target ~debug () =
           if config.dev.clangd_support then
             generate_compile_flags_txt ~root_dir main
     with
-    | Bavar.Project_config.Read_error err ->
-        Printf.eprintf "Failed to read config: %s.\nAt '%s' file.\n" err.message
+    | Builder.Toolchain.Compilation_error code ->
+        eprintf "\nFailed to compile the project: %d exit code.\n" code;
+        exit code
+    | Project_config.Read_error err ->
+        eprintf "Failed to read config: %s.\nAt '%s' file.\n" err.message
           err.path;
         exit 1
     | Sys_error e ->
-        Printf.eprintf "Sys_error. %s.\n" e;
+        eprintf "Sys_error. %s.\n" e;
         exit 1)
   else (
     eprintf "Not found 'LabAvrProject' configuration file at %s.\n"
