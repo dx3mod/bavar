@@ -48,9 +48,13 @@ This should already be installed on your system:
 - avrdude utility (for upload firmware to mcu)
 - Git (optional) (for download a project's dependencies)
 
-#### From source
+#### Prebuilt binaries
 
-by [OPAM](https://opam.ocaml.org/) package manager.
+To get prebuilt binaries, see the [releases page](https://github.com/dx3mod/bavar/releases).
+
+#### Build from source
+
+using [OPAM](https://opam.ocaml.org/) package manager.
 
 ```console
 $ git clone https://github.com/dx3mod/bavar.git
@@ -61,24 +65,13 @@ $ opam install ./bavar
 
 The project is being developed as part of the [LabAvrPlatform](https://github.com/dx3mod/LabAvrPlatform) platform.
 
-## Contributing
+## Development
 
-1. Fork this repository
-2. Create your feature branch
-   (`git checkout -b feature/fooBar`)
-3. Commit your changes and push to the branch
-4. Create a new Pull Request
+bavar written in modern OCaml 5 with use Dune build-system and OPAM package manager.
 
-#### Development
-
-Create virtual environment for project.
-
-```console
+```bash
+# Create virtual environment for project.
 $ opam create switch . --deps-only
-```
-
-Build the project.
-
-```console
+# Build the project.
 $ dune build
 ```
