@@ -1,7 +1,7 @@
 open Core
 
 let strict_flags = [ "-Wall"; "-Wextra"; "-Wpedantic" ]
-let default_includes = [ "avr/io.h"; "stdint.h" ]
+let default_include_headers = [ "avr/io.h"; "stdint.h" ]
 
 module Toolchain = struct
   exception Compilation_error of int
@@ -100,7 +100,7 @@ module Compiler_args = struct
         (if t.debug then [ "-g" ] else []);
         of_build_options t.build_options;
         of_headers t.headers;
-        of_headers default_includes;
+        of_headers default_include_headers;
         t.custom;
         t.build_options.custom;
       ]
@@ -113,8 +113,8 @@ module Compiler_args = struct
       [
         to_args_options t;
         (* files *)
-        Array.to_list t.files;
         to_includes t.includes;
+        Array.to_list t.files;
         [ "-o"; t.output ];
       ]
 end
