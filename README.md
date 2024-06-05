@@ -7,6 +7,7 @@ A domain-specific build system for AVR C/C++ projects with a strong opinion abou
   - Automatic inclusion of header files
   - Bundling resources into the firmware
 - Firmware upload (powered by avrdude)
+- Integration (support generation compile_flags.txt)
 
 The project is currently in active development. :construction:
 
@@ -20,12 +21,12 @@ $ bavar init -target attiny2313a blink
 
 ```
 blink/
-├── LabAvrProject
+├── avr-project
 └── src
     └── main.c
 ```
 
-Configuration file `LabAvrProject`.
+Configuration file `avr-project`.
 
 ```lisp
 (name blink)

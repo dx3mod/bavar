@@ -1,6 +1,8 @@
 # User Guide
 
-## LabAvrProject file specification
+## Configuration file specification
+
+Valid configuration file names: `LabAvrProject`, `avr-project`, `bavar`, `bavar-project`.
 
 ```clojure
 (name <name>)
