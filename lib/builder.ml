@@ -14,16 +14,16 @@ module Toolchain = struct
     Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
 
     (* FIXME: works only on Linux/*nix now *)
-    let _, status =
-      Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd)
-        ~prog:("/usr/bin/" ^ prog) ~argv:(prog :: args)
-      |> Caml_unix.waitpid []
-    in
+    Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:("/usr/bin/" ^ prog)
+      ~argv:(prog :: args)
+    |> Pid.of_int
 
-    match status with
-    | WEXITED 0 -> ()
-    | WEXITED code -> raise (Compilation_error code)
-    | _ -> failwith "failed process status"
+  let rec wait_compilation pid = Core_unix.wait (`Pid pid) |> handle_compilation
+
+  and handle_compilation (_, status) =
+    Result.iter_error status ~f:(function
+      | `Exit_non_zero code -> raise (Compilation_error code)
+      | _ -> failwith "failed process status")
 
   type section_sizes = {
     text : string;
@@ -119,8 +119,8 @@ module Compiler_args = struct
       ]
 end
 
-let rec get_compile_args ~(ctx : Build_context.t)
-    (project : Resolver.avr_project) ~mode =
+let get_compile_args ~(ctx : Build_context.t) (project : Resolver.avr_project)
+    ~mode =
   let open Printf in
   let build_options, debug =
     match mode with
@@ -130,16 +130,19 @@ let rec get_compile_args ~(ctx : Build_context.t)
 
   let output_dir = Build_context.output_dir ctx mode in
 
+  let depend_outputs =
+    List.map project.depends ~f:(fun { path; _ } ->
+        Md5.(to_hex @@ digest_string path) |> sprintf "%s/%s.o" output_dir)
+  in
+
   let depends =
     let depend_args =
       Compiler_args.make ~target:ctx.config.target ~build_options
         ~strict:ctx.config.strict ~custom:[ "-c" ] ~debug
     in
 
-    List.filter_map project.depends ~f:(fun proj_unit ->
-        let hash_name = Md5.(to_hex @@ digest_string proj_unit.path) in
-        let output = sprintf "%s/%s.o" output_dir hash_name in
-
+    List.filter_map (List.zip_exn project.depends depend_outputs)
+      ~f:(fun (proj_unit, output) ->
         let last_modification_time_of_files =
           Array.fold proj_unit.files ~init:0.0 ~f:(fun last_time filename ->
               Float.max last_time @@ (Core_unix.stat filename).st_mtime)
@@ -171,7 +174,7 @@ let rec get_compile_args ~(ctx : Build_context.t)
            ]
            (List.map project.depends ~f:(fun p -> p.path)))
       ~custom:[]
-      ~files:(Array.append project.main.files @@ find_object_files output_dir)
+      ~files:(Array.concat [ project.main.files; Array.of_list depend_outputs ])
       ~includes:project.main.includes ~debug
       ~output:(sprintf "%s/firmware.elf" output_dir)
   in
@@ -195,8 +198,6 @@ and find_entry_file ~proj_name files =
       | _ -> None)
     files
 
-and find_object_files path = Util.globs ~path [ "*.o" ]
-
 let compile ~(ctx : Build_context.t) (main : Compiler_args.t) depends =
   let _proj_kind, lang =
     find_entry_file main.files ~proj_name:ctx.config.name
@@ -205,6 +206,8 @@ let compile ~(ctx : Build_context.t) (main : Compiler_args.t) depends =
 
   let cc = Toolchain.cc ~lang ~cwd:ctx.root_dir in
 
-  List.iter depends ~f:(fun args -> cc @@ Compiler_args.to_args args |> ignore);
+  if not @@ List.is_empty depends then (
+    List.iter depends ~f:(fun args -> cc (Compiler_args.to_args args) |> ignore);
+    Core_unix.wait `Any |> Toolchain.handle_compilation);
 
-  cc @@ Compiler_args.to_args main
+  cc @@ Compiler_args.to_args main |> Toolchain.wait_compilation
