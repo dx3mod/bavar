@@ -137,7 +137,7 @@ let rec get_compile_args ~(ctx : Build_context.t)
     in
 
     List.filter_map project.depends ~f:(fun proj_unit ->
-        let hash_name = Stdlib.Digest.(to_hex @@ string proj_unit.path) in
+        let hash_name = Md5.(to_hex @@ digest_string proj_unit.path) in
         let output = sprintf "%s/%s.o" output_dir hash_name in
 
         let last_modification_time_of_files =
