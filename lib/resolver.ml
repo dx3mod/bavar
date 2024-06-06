@@ -1,7 +1,5 @@
 open Core
-
-type avr_project = { main : Project_unit.t; depends : Project_unit.t list }
-[@@deriving show]
+open Project
 
 let rec resolve_avr_project (ctx : Build_context.t) =
   let globs = Util.globs ~path:(Build_context.source_dir ctx) in
@@ -23,39 +21,41 @@ let rec resolve_avr_project (ctx : Build_context.t) =
           |> Option.is_some)
   in
 
+  let root_dir = ctx.root_dir in
+
   {
-    main =
-      Project_unit.make ~kind:(`Bavar ctx.config) ~path:ctx.root_dir
-        ~files:c_files
-        ~includes:(Array.concat [ h_files; c_includes ])
-        ();
-    depends = resolve_dependencies ctx;
+    kind = `Bavar ctx.config;
+    root_dir;
+    files = c_files;
+    includes = Array.concat [ h_files; c_includes ];
+    depends = resolve_dependencies ~root_dir ctx.config.depends;
   }
 
-and resolve_dependencies (ctx : Build_context.t) =
-  let resolve_dep depend_units = function
-    | Dependency.Local path ->
-        let path =
-          (* FIXME: work only on Unix *)
-          if String.is_prefix ~prefix:"/" path then path
-          else Caml_unix.realpath @@ Filename.concat ctx.root_dir path
-        in
+and resolve_dependencies ~root_dir (depends : Dependency.t list) =
+  let resolve_local_dep path =
+    let path =
+      (* FIXME: work only on Unix? *)
+      if String.is_prefix ~prefix:"/" path then path
+      else Caml_unix.realpath @@ Filename.concat root_dir path
+    in
 
-        if Sys_unix.file_exists_exn @@ Filename.concat path "LabAvrProject" then
-          let config_file_path = Filename.concat path "LabAvrProject" in
-          let config = Project_config.of_file config_file_path in
+    if
+      Sys_unix.file_exists_exn
+      @@ Filename.concat path Util.configuration_filename
+    then
+      let proj_avr =
+        let config = Util.read_project_config ~root_dir:path in
+        Build_context.make ~root_dir:path ~config |> resolve_avr_project
+      in
 
-          let avr_project =
-            resolve_avr_project @@ Build_context.make ~root_dir:path ~config
-          in
-          avr_project.main :: List.append depend_units avr_project.depends
-        else resolve_external_library path :: depend_units
-    | _ -> failwith "not implement yet"
+      proj_avr
+    else resolve_external_library path
   in
 
-  List.fold ~f:resolve_dep ~init:[] ctx.config.depends
+  List.map depends ~f:(function
+    | Dependency.Local path -> resolve_local_dep path
+    | _ -> failwith "not implemented another dependency type yet!")
 
-and resolve_external_library path =
-  Project_unit.make ~kind:`External ~path
-    ~files:(Util.globs ~path [ "*.{c,cpp,cxx,s,o}" ])
-    ()
+and resolve_external_library root_dir =
+  let files = Util.globs ~path:root_dir [ "*.{c,cpp,cxx,s,o}" ] in
+  Project.make_external ~root_dir ~files ()

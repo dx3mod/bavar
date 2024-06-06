@@ -1,213 +1,136 @@
 open Core
+open Project
 
-let strict_flags = [ "-Wall"; "-Wextra"; "-Wpedantic" ]
-let default_include_headers = [ "avr/io.h"; "stdint.h" ]
+type build_unit = {
+  root_dir : string;
+  args : string list;
+  depends : build_unit list;
+  last_modify_time : float;
+}
+[@@deriving show]
 
-module Toolchain = struct
-  exception Compilation_error of int
+let rec to_build_unit (project : avr_project) =
+  let last_modify_time =
+    Array.fold project.files ~init:0.0 ~f:(fun last_time filename ->
+        Float.max last_time @@ (Core_unix.stat filename).st_mtime)
+  in
 
-  let cc ~cwd ~lang args =
-    let prog = match lang with `C | `Asm -> "avr-gcc" | `Cpp -> "avr-g++" in
-
-    Ocolor_format.printf "[@{<cyan> %s @}] %s\n\n" (String.uppercase prog)
-      (String.concat ~sep:" " args);
-    Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
-
-    (* FIXME: works only on Linux/*nix now *)
-    Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:("/usr/bin/" ^ prog)
-      ~argv:(prog :: args)
-    |> Pid.of_int
-
-  let rec wait_compilation pid = Core_unix.wait (`Pid pid) |> handle_compilation
-
-  and handle_compilation (_, status) =
-    Result.iter_error status ~f:(function
-      | `Exit_non_zero code -> raise (Compilation_error code)
-      | _ -> failwith "failed process status")
-
-  type section_sizes = {
-    text : string;
-    data : string;
-    bss : string;
-    all : string;
-  }
-
-  let size path =
-    let values =
-      Core_unix.open_process_in (sprintf "avr-size %s" path)
-      |> In_channel.input_lines |> List.last_exn |> String.split ~on:' '
-      |> List.filter_map ~f:(fun c ->
-             if String.is_empty c then None else Some (Stdlib.String.trim c))
-    in
-
-    match values with
-    | [ text; data; bss; dec; _ ] -> { text; data; bss; all = dec }
-    | _ -> failwith "failed to parse avr-size output"
-end
-
-module Compiler_args = struct
-  open Project_config
-
-  type t = {
-    target : target option;
-    build_options : build_options;
-    strict : bool;
-    headers : string list;
-    custom : string list;
-    files : string array;
-    includes : string array;
-    output : string;
-    debug : bool;
-  }
-
-  let make ~target ~build_options ~strict ~headers ~custom ~files ~includes
-      ~output ~debug =
+  let make_build_unit ~depends ~headers =
     {
-      target;
-      build_options;
-      strict;
-      headers;
-      custom;
-      files;
-      includes;
-      output;
-      debug;
+      root_dir = project.root_dir;
+      args =
+        List.concat
+          [
+            Compiler_args.to_headers headers;
+            Compiler_args.to_includes project.includes;
+            Array.to_list project.files;
+          ];
+      depends;
+      last_modify_time;
     }
-
-  let of_target =
-    let f = function
-      | { mcu; hz = Some hz } ->
-          [ sprintf "-mmcu=%s" (String.lowercase mcu); sprintf "-DF_CPU=%d" hz ]
-      | { mcu; hz = None } -> [ sprintf "-mmcu=%s" (String.lowercase mcu) ]
-    in
-    Option.value_map ~default:[] ~f
-
-  let of_headers = List.fold ~init:[] ~f:(fun list h -> "-I" :: h :: list)
-
-  let of_build_options { lto; no_std; opt_level; _ } =
-    List.concat
-      [
-        (if lto then [ "-flto" ] else []);
-        (if no_std then [ "-e"; "_start"; "-nostdlib" ] else []);
-        [ sprintf "-O%c" opt_level ];
-      ]
-
-  let to_args_options t =
-    List.concat
-      [
-        of_target t.target;
-        (if t.strict then strict_flags else []);
-        (if t.debug then [ "-g" ] else []);
-        of_build_options t.build_options;
-        of_headers t.headers;
-        of_headers default_include_headers;
-        t.custom;
-        t.build_options.custom;
-      ]
-
-  let to_includes =
-    Array.fold ~init:[] ~f:(fun list h -> "-include" :: h :: list)
-
-  let to_args t =
-    List.concat
-      [
-        to_args_options t;
-        (* files *)
-        to_includes t.includes;
-        Array.to_list t.files;
-        [ "-o"; t.output ];
-      ]
-end
-
-let get_compile_args ~(ctx : Build_context.t) (project : Resolver.avr_project)
-    ~mode =
-  let open Printf in
-  let build_options, debug =
-    match mode with
-    | `Release -> (ctx.config.build.release, false)
-    | `Debug -> (ctx.config.build.debug, true)
   in
 
-  let output_dir = Build_context.output_dir ctx mode in
+  match project.kind with
+  | `External -> make_build_unit ~depends:[] ~headers:[]
+  | `Bavar config ->
+      make_build_unit
+        ~depends:(List.map project.depends ~f:to_build_unit)
+        ~headers:
+          (project.root_dir
+          :: Filename.concat project.root_dir config.layout.root_dir
+          :: List.map project.depends ~f:(fun p -> p.root_dir))
 
-  let depend_outputs =
-    List.map project.depends ~f:(fun { path; _ } ->
-        Md5.(to_hex @@ digest_string path) |> sprintf "%s/%s.o" output_dir)
+let rec find_last_modify_time (build_unit : build_unit) =
+  let last_time = build_unit.last_modify_time in
+  match build_unit.depends with
+  | [] -> last_time
+  | depends ->
+      List.fold depends ~init:last_time ~f:(fun last_time u ->
+          Float.max last_time (find_last_modify_time u))
+
+type build_result = { output : string }
+
+let build ~(build_context : Build_context.t) ~(project : avr_project)
+    ~build_profile =
+  let build_opts, is_debug =
+    match build_profile with
+    | `Release -> (build_context.config.build.release, false)
+    | `Debug -> (build_context.config.build.debug, true)
+  in
+  let output_dir = Build_context.output_dir build_context build_profile in
+  let kind, lang =
+    Util.find_entry_file_exn ~proj_name:build_context.config.name project.files
   in
 
-  let depends =
-    let depend_args =
-      Compiler_args.make ~target:ctx.config.target ~build_options
-        ~strict:ctx.config.strict ~custom:[ "-c" ] ~debug
-    in
+  let make_args ~output ?(custom = []) args =
+    List.concat
+      [
+        Compiler_args.of_target build_context.config.target;
+        Compiler_args.of_build_options build_opts;
+        (if is_debug then [ "-g" ] else []);
+        build_opts.custom;
+        custom;
+        (if build_context.config.strict then Compiler_args.strict_flags else []);
+        Compiler_args.to_includes
+        @@ List.to_array Compiler_args.default_include_headers;
+        [ "-o"; output ];
+        args;
+      ]
+  in
 
-    List.filter_map (List.zip_exn project.depends depend_outputs)
-      ~f:(fun (proj_unit, output) ->
-        let last_modification_time_of_files =
-          Array.fold proj_unit.files ~init:0.0 ~f:(fun last_time filename ->
-              Float.max last_time @@ (Core_unix.stat filename).st_mtime)
+  let rec build_depends (depends : build_unit list) =
+    List.map depends ~f:(fun build_unit ->
+        let hashed_name = Md5.(to_hex @@ digest_string build_unit.root_dir) in
+        let output_obj_path = sprintf "%s/%s.o" output_dir hashed_name in
+        let output_a_path = sprintf "%s/%s.a" output_dir hashed_name in
+
+        let depends = build_depends build_unit.depends in
+
+        let last_output_a_modify =
+          if Sys_unix.file_exists_exn output_a_path then
+            (Core_unix.stat output_a_path).st_mtime
+          else 0.0
         in
 
-        if
-          Sys_unix.file_exists_exn output
-          && Float.(
-               (Core_unix.stat output).st_mtime
-               > last_modification_time_of_files)
-        then None
-        else
-          match proj_unit.kind with
-          | `External ->
-              Some
-                (depend_args ~includes:[||] ~files:proj_unit.files
-                   ~headers:[ proj_unit.path ] ~output)
-          | _ -> failwith "not implement yet")
+        if Float.(last_output_a_modify < find_last_modify_time build_unit) then (
+          let args =
+            make_args ~output:output_obj_path ~custom:[ "-c" ] build_unit.args
+          in
+
+          Toolchain.cc ~cwd:build_unit.root_dir ~lang args
+          |> Toolchain.wait_compilation;
+
+          Toolchain.ar_rcs ~output:output_a_path
+          @@ List.append [ output_obj_path ] depends);
+
+        output_a_path)
   in
 
-  let main_args =
-    Compiler_args.make ~target:ctx.config.target ~build_options
-      ~strict:ctx.config.strict
-      ~headers:
-        (List.append
-           [
-             project.main.path;
-             Util.join_paths [ ctx.root_dir; ctx.config.layout.root_dir ];
-           ]
-           (List.map project.depends ~f:(fun p -> p.path)))
-      ~custom:[]
-      ~files:(Array.concat [ project.main.files; Array.of_list depend_outputs ])
-      ~includes:project.main.includes ~debug
-      ~output:(sprintf "%s/firmware.elf" output_dir)
+  let build_unit = to_build_unit project in
+
+  let output =
+    match kind with
+    | `Executable ->
+        let output = sprintf "%s/firmware.elf" output_dir in
+        Toolchain.cc ~cwd:build_unit.root_dir ~lang
+          (List.concat [ build_unit.args; build_depends build_unit.depends ]
+          |> make_args ~output)
+        |> Toolchain.wait_compilation;
+
+        output
+    | `Library ->
+        let output_o = sprintf "%s/%s.o" output_dir build_context.config.name in
+        let output_a = sprintf "%s/%s.a" output_dir build_context.config.name in
+
+        let depends = build_depends build_unit.depends in
+
+        Toolchain.cc ~cwd:build_unit.root_dir ~lang
+          (make_args ~output:output_o build_unit.args)
+        |> Toolchain.wait_compilation;
+
+        Toolchain.ar_rcs ~output:output_a @@ List.append [ output_o ] depends;
+
+        output_a
   in
 
-  (main_args, depends)
-
-and find_entry_file ~proj_name files =
-  let check_ext = function
-    | "c" -> `C
-    | "cpp" | "cxx" -> `Cpp
-    | "s" | "asm" -> `Asm
-    | _ -> failwith "invalid file ext!"
-  in
-
-  Array.find_map
-    ~f:(fun filename ->
-      match Base.String.rsplit2_exn ~on:'.' @@ Filename.basename filename with
-      | "main", ext -> Some (`Executable, check_ext ext)
-      | name, ext when String.equal name proj_name ->
-          Some (`Library, check_ext ext)
-      | _ -> None)
-    files
-
-let compile ~(ctx : Build_context.t) (main : Compiler_args.t) depends =
-  let _proj_kind, lang =
-    find_entry_file main.files ~proj_name:ctx.config.name
-    |> Option.value_exn ~message:"not found entry point file at project!"
-  in
-
-  let cc = Toolchain.cc ~lang ~cwd:ctx.root_dir in
-
-  if not @@ List.is_empty depends then (
-    List.iter depends ~f:(fun args -> cc (Compiler_args.to_args args) |> ignore);
-    Core_unix.wait `Any |> Toolchain.handle_compilation);
-
-  cc @@ Compiler_args.to_args main |> Toolchain.wait_compilation
+  { output }

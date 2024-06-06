@@ -9,26 +9,28 @@ let rec compile_the_project ~root_dir ~target ~debug () =
     let build_context = Build_context.make ~root_dir ~config in
     let build_profile = if debug then `Debug else `Release in
 
-    let avr_project = Resolver.resolve_avr_project build_context in
+    let project = Resolver.resolve_avr_project build_context in
 
     Core_unix.mkdir_p @@ Build_context.output_dir build_context build_profile;
 
-    let main, depends =
-      Builder.get_compile_args avr_project ~ctx:build_context
-        ~mode:build_profile
+    target |> ignore;
+
+    let generate_compile_flags_txt () =
+      Out_channel.write_lines
+        (Filename.concat root_dir "compile_flags.txt")
+        (Clangd.to_compile_flags_txt ~config project)
     in
 
     match target with
-    | Some "@clangd" -> generate_compile_flags_txt ~root_dir main
+    | Some "@clangd" -> generate_compile_flags_txt ()
     | Some _ -> failwith "invalid target value for build!"
     | None ->
-        Builder.compile ~ctx:build_context main depends;
-        display_section_sizes @@ Builder.Toolchain.size main.output;
+        let result = Builder.build ~build_context ~project ~build_profile in
+        display_section_sizes @@ Toolchain.size result.output;
 
-        if config.dev.clangd_support then
-          generate_compile_flags_txt ~root_dir main
+        if config.dev.clangd_support then generate_compile_flags_txt ()
   with
-  | Builder.Toolchain.Compilation_error code ->
+  | Toolchain.Compilation_error code ->
       eprintf "\nFailed to compile the project: %d exit code.\n" code;
       exit code
   | Sys_error e ->
@@ -36,6 +38,7 @@ let rec compile_the_project ~root_dir ~target ~debug () =
       exit 1
 
 and display_section_sizes section_sizes =
+  let open Toolchain in
   Ocolor_format.printf "[@{<blue> MEMORY USAGE @}] %s bytes\n\n"
     section_sizes.all;
   Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
@@ -43,11 +46,6 @@ and display_section_sizes section_sizes =
   printf " .text  :        %s bytes\n" section_sizes.text;
   printf " .data  :        %s bytes\n" section_sizes.data;
   printf " .bss   :        %s bytes\n" section_sizes.bss
-
-and generate_compile_flags_txt ~root_dir args =
-  Out_channel.write_lines
-    (Filename.concat root_dir "compile_flags.txt")
-    (Clangd.to_compile_flags_txt args)
 
 let command =
   Command.basic ~summary:"compile the current project"

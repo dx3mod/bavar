@@ -46,3 +46,24 @@ let read_project_config ~root_dir =
 
 let configuration_filename =
   Sys.getenv "BAVAR_CONFIG_NAME" |> Option.value ~default:"avr-project"
+
+let find_entry_file ~proj_name files =
+  let check_ext = function
+    | "c" -> `C
+    | "cpp" | "cxx" -> `Cpp
+    | "s" | "asm" -> `Asm
+    | _ -> failwith "invalid file ext!"
+  in
+
+  Array.find_map
+    ~f:(fun filename ->
+      match Base.String.rsplit2_exn ~on:'.' @@ Filename.basename filename with
+      | "main", ext -> Some (`Executable, check_ext ext)
+      | name, ext when String.equal name proj_name ->
+          Some (`Library, check_ext ext)
+      | _ -> None)
+    files
+
+let find_entry_file_exn ~proj_name files =
+  find_entry_file ~proj_name files
+  |> Option.value_exn ~message:"not found entry file!"
