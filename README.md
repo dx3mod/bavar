@@ -69,10 +69,4 @@ The project is being developed as part of the [LabAvrPlatform](https://github.co
 ## Development
 
 bavar written in modern OCaml 5 with use Dune build-system and OPAM package manager.
-
-```bash
-# Create virtual environment for project.
-$ opam create switch . --deps-only
-# Build the project.
-$ dune build
-```
+See [Managing Dependencies With opam](https://ocaml.org/docs/managing-dependencies) for details.
