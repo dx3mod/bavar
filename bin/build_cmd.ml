@@ -21,17 +21,31 @@ let rec compile_the_project ~root_dir ~target ~debug () =
         (Clangd.to_compile_flags_txt ~config project)
     in
 
+    let build () =
+      let result = Builder.build ~build_context ~project ~build_profile in
+      display_section_sizes @@ Toolchain.size result.output;
+
+      if config.dev.clangd_support then generate_compile_flags_txt ();
+
+      result
+    in
+
+    let program output =
+      Toolchain.avrdude ~programmer:config.program.programmer_id
+        ~port:config.program.port ~firmware:(`Elf output) ()
+    in
+
     match target with
     | Some "@clangd" -> generate_compile_flags_txt ()
+    | Some "@upload" -> build () |> fun r -> program Builder.(r.output)
     | Some _ -> failwith "invalid target value for build!"
-    | None ->
-        let result = Builder.build ~build_context ~project ~build_profile in
-        display_section_sizes @@ Toolchain.size result.output;
-
-        if config.dev.clangd_support then generate_compile_flags_txt ()
+    | None -> build () |> ignore
   with
   | Toolchain.Compilation_error code ->
       eprintf "\nFailed to compile the project: %d exit code.\n" code;
+      exit code
+  | Toolchain.Program_error code ->
+      eprintf "\nFailed to program the project: %d exit code.\n" code;
       exit code
   | Sys_error e ->
       eprintf "Sys_error. %s.\n" e;
@@ -49,7 +63,7 @@ and display_section_sizes section_sizes =
 
 let command =
   Command.basic ~summary:"compile the current project"
-    ~readme:(fun () -> {|Targets: '@clangd'.|})
+    ~readme:(fun () -> {|Targets: '@clangd', '@upload'.|})
     (let%map_open.Command root_dir =
        flag "-root-dir"
          (optional_with_default current_path string)

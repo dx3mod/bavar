@@ -67,3 +67,9 @@ let find_entry_file ~proj_name files =
 let find_entry_file_exn ~proj_name files =
   find_entry_file ~proj_name files
   |> Option.value_exn ~message:"not found entry file!"
+
+let print_command_log ~prog args =
+  String.concat ~sep:" " args
+  |> Ocolor_format.printf "\n[@{<cyan> %s @}] %s\n\n" prog;
+
+  Ocolor_format.pp_print_flush Ocolor_format.std_formatter ()

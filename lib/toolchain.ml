@@ -5,13 +5,11 @@ exception Compilation_error of int
 let cc ~cwd ~lang args =
   let prog = match lang with `C | `Asm -> "avr-gcc" | `Cpp -> "avr-g++" in
 
-  Ocolor_format.printf "[@{<cyan> %s @}] %s\n\n" (String.uppercase prog)
-    (String.concat ~sep:" " args);
-  Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
+  Util.print_command_log ~prog:(String.uppercase prog) args;
 
   (* FIXME: works only on Linux/*nix now *)
-  Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:("/usr/bin/" ^ prog)
-    ~argv:(prog :: args)
+  Spawn.spawn () ~cwd:(Spawn.Working_dir.Path cwd) ~prog:"/usr/bin/env"
+    ~argv:("/usr/bin/env" :: prog :: args)
   |> Pid.of_int
 
 let rec wait_compilation pid = Core_unix.wait (`Pid pid) |> handle_compilation
@@ -19,7 +17,7 @@ let rec wait_compilation pid = Core_unix.wait (`Pid pid) |> handle_compilation
 and handle_compilation (_, status) =
   Result.iter_error status ~f:(function
     | `Exit_non_zero code -> raise (Compilation_error code)
-    | _ -> failwith "failed process status")
+    | _ -> failwith "failed compilation process")
 
 type section_sizes = {
   text : string;
@@ -51,3 +49,32 @@ let ar_rcs ~output files =
   match snd @@ Core_unix.wait (`Pid info.pid) with
   | Ok () -> ()
   | _ -> failwith "fail ar rcs"
+
+exception Program_error of int
+
+let avrdude ~programmer ~port ~firmware ?(custom = []) () =
+  let args =
+    List.concat
+      [
+        [
+          "-c";
+          programmer;
+          (match firmware with `Elf path -> sprintf "-Uflash:w:%s:e" path);
+        ];
+        Option.value_map port ~default:[] ~f:(fun port -> [ "-P"; port ]);
+        custom;
+      ]
+  in
+
+  Util.print_command_log ~prog:"AVRDUDE" args;
+
+  (* FIXME: it's works only on *nix *)
+  let pid =
+    Spawn.spawn () ~prog:"/usr/bin/env"
+      ~argv:("/usr/bin/env" :: "avrdude" :: args)
+  in
+
+  match snd @@ Caml_unix.waitpid [] pid with
+  | WEXITED 0 -> ()
+  | WEXITED code -> raise (Program_error code)
+  | _ -> failwith "failed avrdude program process"

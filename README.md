@@ -33,10 +33,9 @@ Configuration file `avr-project`.
 (target attiny2313a 1mhz)
 ```
 
-Compile the current project (release by default).
-
+Compile and upload the current project (compile in release by default and use usbasp programmer).
 ```console
-$ bavar build
+$ bavar build @upload
 ```
 
 [Read the user guide.](./GUIDE.md)
