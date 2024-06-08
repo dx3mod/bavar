@@ -34,11 +34,27 @@ Valid configuration file names: `LabAvrProject`, `avr-project`, `bavar`, `bavar-
 ;;   ./local/dir                    ; import local project
 ;;   https://github.com/user/repo)  ; auto-download from Internet
 
+(resources <paths>) ; bundle resource files
+
 (dev <opts>)
-;; clangd or compile_flags.txt  - generate config for clangd 
+;; clangd or compile_flags.txt  - generate config for clangd
 ```
 
 ## Project Layout
 
 - `_build` - artifact's directory
 - `src/` - source files
+
+## Resources
+
+In configuration file.
+
+```clojure
+(resources image.bmp)
+```
+
+In code, you can reference the resource content using the `IMAGE_BMP` variable.
+
+```c
+IMAGE_BMP; // const unsigned char [] PROGMEM
+```

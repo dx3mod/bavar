@@ -4,6 +4,7 @@ type avr_project = {
   includes : string array; [@default [||]]
   files : string array; [@default [||]]
   depends : avr_project list; [@default []]
+  resources : string list; [@default []]
 }
 [@@deriving show, make]
 

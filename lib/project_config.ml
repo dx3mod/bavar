@@ -1,3 +1,5 @@
+(* build *)
+
 type build_options = {
   opt_level : char; [@default 's']
   lto : bool; [@default false]
@@ -9,8 +11,25 @@ type build_options = {
 
 and artifacts = { intermixed : bool; intel_hex : bool } [@@deriving show]
 
+type build_configurations = { release : build_options; debug : build_options }
+[@@deriving show]
+
+let release_build_options = make_build_options ~lto:true ()
+let debug_build_options = make_build_options ~opt_level:'1' ()
+
+(* program *)
+
 type program_options = { programmer_id : string; port : string option }
 [@@deriving show]
+
+(* development options *)
+
+type dev_options = { clangd_support : bool [@default false] }
+[@@deriving show, make]
+
+let dev_options_default = make_dev_options ()
+
+(* other *)
 
 type target = { mcu : string; hz : int option } [@@deriving show, make]
 
@@ -20,16 +39,9 @@ type layout = {
 }
 [@@deriving show, make]
 
-type dev_options = { clangd_support : bool [@default false] }
-[@@deriving show, make]
+type resource = { path : string } [@@deriving show, make]
 
-let dev_options_default = make_dev_options ()
-
-type build_configurations = { release : build_options; debug : build_options }
-[@@deriving show]
-
-let release_build_options = make_build_options ~lto:true ()
-let debug_build_options = make_build_options ~opt_level:'1' ()
+(* configuration type *)
 
 type t = {
   name : string;
@@ -44,6 +56,7 @@ type t = {
   strict : bool; [@default true]
   envs : (string * string) list; [@default []]
   depends : Dependency.t list; [@default []]
+  resources : resource list; [@default []]
   dev : dev_options; [@default dev_options_default]
 }
 [@@deriving show, make]
@@ -76,6 +89,8 @@ let rec of_sexp sexp =
     let* envs = D.field_opt_or "envs" ~default:[] envs_decoder in
     let* depends = D.field_opt_or "depends" ~default:[] depends_decoder in
 
+    let* resources = D.field_opt_or "resources" ~default:[] resources_decoder in
+
     let* dev_options =
       D.field_opt_or "dev" ~default:dev_options_default
         (dev_options_decoder dev_options_default)
@@ -93,6 +108,7 @@ let rec of_sexp sexp =
         envs;
         depends;
         dev = dev_options;
+        resources;
       }
   in
 
@@ -194,6 +210,17 @@ and dev_options_decoder default =
   with
   | Ok dev_options -> D.succeed dev_options
   | Error msg -> D.fail_with msg
+
+and resources_decoder =
+  let rec parse_sexp = function
+    | Sexp.Atom path -> [ make_resource ~path ]
+    | Sexp.List atoms ->
+        Core.List.bind atoms ~f:(function
+          | Sexp.List _ -> failwith "invalid resource value!"
+          | atom -> parse_sexp atom)
+  in
+
+  D.value >>= fun atom -> D.succeed @@ parse_sexp atom
 
 exception Read_error of { message : string; path : string }
 

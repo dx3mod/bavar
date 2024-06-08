@@ -1,7 +1,8 @@
 (lang dune 3.15)
 
 (name bavar)
-(version 0.2.0)
+
+(version 0.3.0)
 
 (generate_opam_files true)
 
@@ -34,5 +35,3 @@
   ocolor)
  (tags
   (labavrplatform avr build-system)))
-
-; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project

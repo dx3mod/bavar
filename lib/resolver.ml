@@ -1,6 +1,8 @@
 open Core
 open Project
 
+exception Resolve_error of { message : string }
+
 let rec resolve_avr_project (ctx : Build_context.t) =
   let globs = Util.globs ~path:(Build_context.source_dir ctx) in
 
@@ -23,12 +25,17 @@ let rec resolve_avr_project (ctx : Build_context.t) =
 
   let root_dir = ctx.root_dir in
 
+  let resources =
+    resolver_resources ~root_dir:ctx.root_dir ctx.config.resources
+  in
+
   {
     kind = `Bavar ctx.config;
     root_dir;
     files = c_files;
     includes = Array.concat [ h_files; c_includes ];
     depends = resolve_dependencies ~root_dir ctx.config.depends;
+    resources;
   }
 
 and resolve_dependencies ~root_dir (depends : Dependency.t list) =
@@ -45,7 +52,8 @@ and resolve_dependencies ~root_dir (depends : Dependency.t list) =
     then
       let proj_avr =
         let config = Util.read_project_config ~root_dir:path in
-        Build_context.make ~root_dir:path ~config |> resolve_avr_project
+        let build_context = Build_context.make ~root_dir:path ~config in
+        resolve_avr_project build_context
       in
 
       proj_avr
@@ -59,3 +67,17 @@ and resolve_dependencies ~root_dir (depends : Dependency.t list) =
 and resolve_external_library root_dir =
   let files = Util.globs ~path:root_dir [ "*.{c,cpp,cxx,s,o}" ] in
   Project.make_external ~root_dir ~files ()
+
+and resolver_resources ~root_dir (resources : Project_config.resource list) =
+  let open Project_config in
+  let resolve_resource resource =
+    let full_path = Filename.concat root_dir resource.path in
+
+    if Sys_unix.is_file_exn full_path then full_path
+    else
+      raise
+      @@ Resolve_error
+           { message = sprintf "unknown '%s' resource path" resource.path }
+  in
+
+  List.map resources ~f:resolve_resource

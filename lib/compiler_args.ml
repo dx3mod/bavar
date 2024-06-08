@@ -2,7 +2,9 @@ open Core
 open Project_config
 
 let strict_flags = [ "-Wall"; "-Wextra"; "-Wpedantic" ]
-let default_include_headers = [ "avr/io.h"; "stdint.h"; "stddef.h" ]
+
+let default_include_headers =
+  [ "avr/io.h"; "stdint.h"; "stddef.h"; "avr/pgmspace.h" ]
 
 let of_target =
   let f = function

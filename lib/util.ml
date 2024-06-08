@@ -70,6 +70,8 @@ let find_entry_file_exn ~proj_name files =
 
 let print_command_log ~prog args =
   String.concat ~sep:" " args
-  |> Ocolor_format.printf "\n[@{<cyan> %s @}] %s\n\n" prog;
+  |> Ocolor_format.printf "\n[@{<cyan> %s @}] %s\n" prog;
 
   Ocolor_format.pp_print_flush Ocolor_format.std_formatter ()
+
+let hash_path = Md5.(Fn.compose to_hex digest_string)

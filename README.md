@@ -5,7 +5,7 @@ A domain-specific build system for AVR C/C++ projects with a strong opinion abou
 - Opinionated projects organization
 - Build with resolution of external dependencies
   - Automatic inclusion of files
-  - Bundling resources into the firmware
+  - Bundling resources into a firmware
 - Firmware upload (powered by avrdude)
 - Integration (support generation compile_flags.txt)
 

@@ -47,13 +47,16 @@ let rec compile_the_project ~root_dir ~target ~debug () =
   | Toolchain.Program_error code ->
       eprintf "\nFailed to program the project: %d exit code.\n" code;
       exit code
+  | Resolver.Resolve_error { message } ->
+      eprintf "Failed to resolve project: %s!\n" message;
+      exit 1
   | Sys_error e ->
       eprintf "Sys_error. %s.\n" e;
       exit 1
 
 and display_section_sizes section_sizes =
   let open Toolchain in
-  Ocolor_format.printf "[@{<blue> MEMORY USAGE @}] %s bytes\n\n"
+  Ocolor_format.printf "\n[@{<blue> MEMORY USAGE @}] %s bytes\n\n"
     section_sizes.all;
   Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
 
