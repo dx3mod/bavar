@@ -3,7 +3,7 @@ open Bavar
 
 let current_path = Core_unix.getcwd ()
 
-let rec compile_the_project ~root_dir ~target ~debug () =
+let rec compile_the_project ~root_dir ~target ~debug ~clangd_support () =
   try
     let config = Util.read_project_config ~root_dir in
     let build_context = Build_context.make ~root_dir ~config in
@@ -22,10 +22,11 @@ let rec compile_the_project ~root_dir ~target ~debug () =
     in
 
     let build () =
+      if config.dev.clangd_support || clangd_support then
+        generate_compile_flags_txt ();
+
       let result = Builder.build ~build_context ~project ~build_profile in
       display_section_sizes @@ Toolchain.size result.output;
-
-      if config.dev.clangd_support then generate_compile_flags_txt ();
 
       result
     in
@@ -79,5 +80,7 @@ let command =
          ~doc:"path to project"
      and debug =
        flag "-debug" no_arg ~doc:"enable debug profile for compilation"
+     and clangd_support =
+       flag "-clangd" no_arg ~doc:"enable clangd config build"
      and target = anon @@ maybe ("@target" %: string) in
-     compile_the_project ~root_dir ~target ~debug)
+     compile_the_project ~root_dir ~target ~debug ~clangd_support)
