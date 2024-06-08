@@ -39,6 +39,7 @@ Valid configuration file names: `LabAvrProject`, `avr-project`, `bavar`, `bavar-
 
 (dev <opts>)
 ;; clangd or compile_flags.txt  - generate config for clangd
+;; c_cpp_properties - generate config for vscode c/c++ extension
 ```
 
 ## Project Layout

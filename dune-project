@@ -32,6 +32,8 @@
   re
   globlon
   spawn
-  ocolor)
+  ocolor
+  yojson
+  ppx_deriving_yojson)
  (tags
   (labavrplatform avr build-system)))

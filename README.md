@@ -7,7 +7,9 @@ A domain-specific build system for AVR C/C++ projects with a strong opinion abou
   - Automatic inclusion of files
   - Bundling resources into a firmware
 - Firmware upload (powered by avrdude)
-- Integration (support generation compile_flags.txt)
+- Integration with text editors (support generations)
+  - compile_flags.txt for clangd
+  - c_cpp_properties.json for VSCode C/C++ extension
 
 The project is currently in active development. :construction:
 

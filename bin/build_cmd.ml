@@ -3,7 +3,8 @@ open Bavar
 
 let current_path = Core_unix.getcwd ()
 
-let rec compile_the_project ~root_dir ~target ~debug ~clangd_support () =
+let rec compile_the_project ~root_dir ~target ~debug ~clangd_support
+    ~c_cpp_properties_support () =
   try
     let config = Util.read_project_config ~root_dir in
     let build_context = Build_context.make ~root_dir ~config in
@@ -18,12 +19,24 @@ let rec compile_the_project ~root_dir ~target ~debug ~clangd_support () =
     let generate_compile_flags_txt () =
       Out_channel.write_lines
         (Filename.concat root_dir "compile_flags.txt")
-        (Clangd.to_compile_flags_txt ~config project)
+        (Integrations.Clangd.to_compile_flags_txt ~config project)
+    in
+
+    let generate_c_cpp_properties () =
+      Core_unix.mkdir_p ".vscode";
+
+      Out_channel.with_file ".vscode/c_cpp_properties.json" ~f:(fun ch ->
+          Integrations.Vs_code.of_project ~config project
+          |> Integrations.Vs_code.to_yojson
+          |> Yojson.Safe.pretty_to_channel ch)
     in
 
     let build () =
       if config.dev.clangd_support || clangd_support then
         generate_compile_flags_txt ();
+
+      if config.dev.vscode_support || c_cpp_properties_support then
+        generate_c_cpp_properties ();
 
       let result = Builder.build ~build_context ~project ~build_profile in
       display_section_sizes @@ Toolchain.size result.output;
@@ -37,7 +50,8 @@ let rec compile_the_project ~root_dir ~target ~debug ~clangd_support () =
     in
 
     match target with
-    | Some "@clangd" -> generate_compile_flags_txt ()
+    | Some "@compile_flags.txt" -> generate_compile_flags_txt ()
+    | Some "@c_cpp_properties" -> generate_c_cpp_properties ()
     | Some "@upload" -> build () |> fun r -> program Builder.(r.output)
     | Some _ -> failwith "invalid target value for build!"
     | None -> build () |> ignore
@@ -73,7 +87,7 @@ and display_section_sizes section_sizes =
 
 let command =
   Command.basic ~summary:"compile the current project"
-    ~readme:(fun () -> {|Targets: '@clangd', '@upload'.|})
+    ~readme:(fun () -> {|Targets: '@compile_flags.txt', '@c_cpp_properties'.|})
     (let%map_open.Command root_dir =
        flag "-root-dir"
          (optional_with_default current_path string)
@@ -81,6 +95,10 @@ let command =
      and debug =
        flag "-debug" no_arg ~doc:"enable debug profile for compilation"
      and clangd_support =
-       flag "-clangd" no_arg ~doc:"enable clangd config build"
+       flag "-compile-flags" no_arg ~doc:"enable clangd config build"
+     and c_cpp_properties_support =
+       flag "-c-cpp-properties" no_arg
+         ~doc:"enable vscode/c_cpp_properties.json config build"
      and target = anon @@ maybe ("@target" %: string) in
-     compile_the_project ~root_dir ~target ~debug ~clangd_support)
+     compile_the_project ~root_dir ~target ~debug ~clangd_support
+       ~c_cpp_properties_support)

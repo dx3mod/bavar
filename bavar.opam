@@ -21,6 +21,8 @@ depends: [
   "globlon"
   "spawn"
   "ocolor"
+  "yojson"
+  "ppx_deriving_yojson"
   "odoc" {with-doc}
 ]
 build: [

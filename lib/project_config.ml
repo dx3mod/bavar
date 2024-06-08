@@ -24,7 +24,10 @@ type program_options = { programmer_id : string; port : string option }
 
 (* development options *)
 
-type dev_options = { clangd_support : bool [@default false] }
+type dev_options = {
+  clangd_support : bool; [@default false]
+  vscode_support : bool; [@default false]
+}
 [@@deriving show, make]
 
 let dev_options_default = make_dev_options ()
@@ -194,8 +197,11 @@ and depends_decoder =
 
 and dev_options_decoder default =
   let open Base in
-  let parse _ = function
-    | Sexp.Atom ("clangd" | "compile_flags.txt") -> Ok { clangd_support = true }
+  let parse opts = function
+    | Sexp.Atom ("clangd" | "compile_flags.txt") ->
+        Ok { opts with clangd_support = true }
+    | Sexp.Atom ("vscode" | "c_cpp_properties") ->
+        Ok { opts with vscode_support = true }
     | _ ->
         Error
           (Decoders.Error.make
