@@ -78,3 +78,20 @@ let avrdude ~programmer ~port ~firmware ?(custom = []) () =
   | WEXITED 0 -> ()
   | WEXITED code -> raise (Program_error code)
   | _ -> failwith "failed avrdude program process"
+
+exception Git_clone_error of int
+
+let git_clone url ~to' =
+  let args = [ "git"; "clone"; url; to' ] in
+
+  Util.print_command_log ~prog:"GIT" args;
+
+  let pid =
+    Spawn.spawn () ~prog:"/usr/bin/env" ~argv:("/usr/bin/env" :: args)
+  in
+
+  let _, status = Caml_unix.waitpid [] pid in
+  match status with
+  | WEXITED 0 -> ()
+  | WEXITED code -> raise @@ Git_clone_error code
+  | _ -> failwith "failed git clone process"

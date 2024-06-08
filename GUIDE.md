@@ -10,7 +10,7 @@ Valid configuration file names: `LabAvrProject`, `avr-project`, `bavar`, `bavar-
 ;; (target attiny13) | (target ... 1_000_000) | (target ... 1mhz)
 
 (lang <standard>)
-(strict <bool>)
+(strict <bool>) ; true by default
 
 (build.debug <opts>) ; for debug
 (build <opts>) ; for release
@@ -33,6 +33,7 @@ Valid configuration file names: `LabAvrProject`, `avr-project`, `bavar`, `bavar-
 ;; (libraries
 ;;   ./local/dir                    ; import local project
 ;;   https://github.com/user/repo)  ; auto-download from Internet
+;;   http://192.168.0.0/private-repo.git
 
 (resources <paths>) ; bundle resource files
 
@@ -58,3 +59,13 @@ In code, you can reference the resource content using the `IMAGE_BMP` variable.
 ```c
 IMAGE_BMP; // const unsigned char [] PROGMEM
 ```
+
+## Depends
+
+Allowable dependency values:
+
+- Local paths (to be found from the root project directory)
+- `https://github.com/*` (convert to `https://github.com/*.git`)
+- `http*.git`
+
+Remote dependencies are cloned into the `_build` directory. To update them, you need to clear the cache (remove the build directory).

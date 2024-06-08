@@ -34,16 +34,17 @@ let rec resolve_avr_project (ctx : Build_context.t) =
     root_dir;
     files = c_files;
     includes = Array.concat [ h_files; c_includes ];
-    depends = resolve_dependencies ~root_dir ctx.config.depends;
+    depends = resolve_dependencies ~ctx ctx.config.depends;
     resources;
   }
 
-and resolve_dependencies ~root_dir (depends : Dependency.t list) =
-  let resolve_local_dep path =
+and resolve_dependencies ~(ctx : Build_context.t) (depends : Dependency.t list)
+    =
+  let resolve_local_depend path =
     let path =
       (* FIXME: work only on Unix? *)
       if String.is_prefix ~prefix:"/" path then path
-      else Caml_unix.realpath @@ Filename.concat root_dir path
+      else Caml_unix.realpath @@ Filename.concat ctx.root_dir path
     in
 
     if
@@ -60,9 +61,19 @@ and resolve_dependencies ~root_dir (depends : Dependency.t list) =
     else resolve_external_library path
   in
 
+  let resolve_git_depend url =
+    let name = String.split ~on:'/' url |> List.last_exn in
+    let output = Filename.concat (Build_context.build_dir ctx) name in
+
+    if not @@ Sys_unix.file_exists_exn output then
+      Toolchain.git_clone url ~to':output;
+
+    resolve_local_depend output
+  in
+
   List.map depends ~f:(function
-    | Dependency.Local path -> resolve_local_dep path
-    | _ -> failwith "not implemented another dependency type yet!")
+    | Dependency.Local path -> resolve_local_depend path
+    | Dependency.Git url -> resolve_git_depend url)
 
 and resolve_external_library root_dir =
   let files = Util.globs ~path:root_dir [ "*.{c,cpp,cxx,s,o}" ] in

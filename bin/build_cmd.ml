@@ -47,8 +47,14 @@ let rec compile_the_project ~root_dir ~target ~debug () =
   | Toolchain.Program_error code ->
       eprintf "\nFailed to program the project: %d exit code.\n" code;
       exit code
+  | Toolchain.Git_clone_error code ->
+      eprintf "Failed to clone Git repository: %d exit code.\n" code;
+      exit code
   | Resolver.Resolve_error { message } ->
       eprintf "Failed to resolve project: %s!\n" message;
+      exit 1
+  | Dependency.Parse_error { value; message } ->
+      eprintf "Invalid '%s' value: %s!\n" value message;
       exit 1
   | Sys_error e ->
       eprintf "Sys_error. %s.\n" e;
