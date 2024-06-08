@@ -28,12 +28,13 @@ blink/
 
 Configuration file `avr-project`.
 
-```lisp
+```clojure
 (name blink)
 (target attiny2313a 1mhz)
 ```
 
 Compile and upload the current project (compile in release by default and use usbasp programmer).
+
 ```console
 $ bavar build @upload
 ```
@@ -68,4 +69,4 @@ The project is being developed as part of the [LabAvrPlatform](https://github.co
 ## Development
 
 bavar written in modern OCaml 5 with use Dune build-system and OPAM package manager.
-See [Managing Dependencies With opam](https://ocaml.org/docs/managing-dependencies) for details.
+See [Managing Dependencies With opam](https://ocaml.org/docs/managing-dependencies) for details. See also [development guide](./DEV.md).
