@@ -153,6 +153,8 @@ and build_options_decoder default =
           }
     | Sexp.List [ Sexp.Atom "lto"; Sexp.Atom (("false" | "true") as flag) ] ->
         Ok { origin with lto = Bool.of_string flag }
+    | Sexp.Atom arg when String.is_prefix ~prefix:"-" arg ->
+        Ok { origin with custom = arg :: origin.custom }
     | _ ->
         Error
           (Decoders.Error.make

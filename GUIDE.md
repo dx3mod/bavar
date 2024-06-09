@@ -19,9 +19,10 @@ Valid configuration file names: `LabAvrProject`, `avr-project`, `bavar`, `bavar-
 ;;  lto           - enable lto (off for debug and on for release)
 ;;  (lto <bool>)
 ;;  no_std        - disable libc and set '_start' as entrypoint
-;; (custom <...>) - custom user's arguments
 ;; intel_hex      - enable Intel HEX generation from ELF firmware
 ;; intermixed     - enable dissembled mix generation
+;; <flag>          - custom user arguments starts with '-'
+
 
 (program.id <programmer-id>) ; usbasp by default
 (program.port <path>)
@@ -52,14 +53,16 @@ Valid configuration file names: `LabAvrProject`, `avr-project`, `bavar`, `bavar-
 In configuration file.
 
 ```clojure
-(resources image.bmp)
+(resources image.bin)
 ```
 
-In code, you can reference the resource content using the `IMAGE_BMP` variable.
+In code, you can reference the resource content using the `IMAGE_BIN` variable.
 
 ```c
-IMAGE_BMP; // const unsigned char [] PROGMEM
+IMAGE_BIN; // const unsigned char [] PROGMEM
 ```
+
+Important! Converts the file to a set of bytes as is.
 
 ## Depends
 
