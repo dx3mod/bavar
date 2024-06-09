@@ -75,8 +75,8 @@ let build ~(build_context : Build_context.t) ~(project : avr_project)
         (if build_context.config.strict then Compiler_args.strict_flags else []);
         Compiler_args.to_includes
         @@ List.to_array Compiler_args.default_include_headers;
-        [ "-o"; output ];
         Compiler_args.to_includes @@ Array.of_list resources;
+        [ "-o"; output ];
         args;
       ]
   in

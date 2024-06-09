@@ -8,7 +8,7 @@ module Resource = struct
     |> String.uppercase
 
   let format_variable ~name ~data =
-    sprintf "const unsigned char %s[] PROGMEM = {%s};" name data
+    sprintf "static const unsigned char %s[] PROGMEM = {%s};" name data
 
   let generate_binary ~name ~for':filename ~to':output =
     (* FIXME: read all file is bloat *)
