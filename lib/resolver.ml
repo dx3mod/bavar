@@ -4,24 +4,12 @@ open Project
 exception Resolve_error of { message : string }
 
 let rec resolve_avr_project (ctx : Build_context.t) =
-  let globs = Util.globs ~path:(Build_context.source_dir ctx) in
+  let globs_src = Util.globs ~path:(Build_context.source_dir ctx) in
+  let globs_include = Util.globs ~path:(Build_context.include_dir ctx) in
 
-  let c_files = globs [ "*.{c,cpp,cxx,s}"; "**/*.{c,cpp,cxx,s}" ] in
-  let h_files = globs [ "*.{h,hpp,hxx}"; "**/*.{h,hpp,hxx}" ] in
-
-  let c_files, c_includes =
-    Array.partition_tf c_files ~f:(fun filename ->
-        let path, _ = String.rsplit2_exn ~on:'.' filename in
-
-        (* TODO: is slow? *)
-        if
-          String.is_suffix ~suffix:"main" path
-          || String.is_suffix ~suffix:ctx.config.name path
-        then true
-        else
-          Array.find h_files ~f:(String.is_prefix ~prefix:path)
-          |> Option.is_some)
-  in
+  let c_files = globs_src [ "*.{c,cpp,cxx,s}"; "**/*.{c,cpp,cxx,s}" ] in
+  let h_files = globs_src [ "*.{h,hpp,hxx}"; "**/*.{h,hpp,hxx}" ] in
+  let h_files' = globs_include [ "*.{h,hpp,hxx}"; "**/*.{h,hpp,hxx}" ] in
 
   let root_dir = ctx.root_dir in
 
@@ -33,7 +21,7 @@ let rec resolve_avr_project (ctx : Build_context.t) =
     kind = `Bavar ctx.config;
     root_dir;
     files = c_files;
-    includes = Array.concat [ h_files; c_includes ];
+    includes = Array.concat [ h_files; h_files' ];
     depends = resolve_dependencies ~ctx ctx.config.depends;
     resources;
   }

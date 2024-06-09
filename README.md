@@ -4,7 +4,7 @@ A domain-specific build system for AVR C/C++ projects with a strong opinion abou
 
 - Opinionated projects organization
 - Build with resolution of external dependencies
-  - Automatic inclusion of files
+  - Automatic inclusion of header files
   - Bundling resources into a firmware with some image conversions 
 - Firmware upload (powered by avrdude)
 - Integration with text editors (support generations)

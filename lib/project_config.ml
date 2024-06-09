@@ -39,6 +39,7 @@ type target = { mcu : string; hz : int option } [@@deriving show, make]
 type layout = {
   root_dir : string; [@default "src"]
   out_dir : string; [@default "_build"]
+  headers_dir : string; [@default "include"]
 }
 [@@deriving show, make]
 
