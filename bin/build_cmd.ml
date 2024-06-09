@@ -35,11 +35,11 @@ let rec compile_the_project ~root_dir ~target ~debug ~clangd_support
       if config.dev.clangd_support || clangd_support then
         generate_compile_flags_txt ();
 
-      if config.dev.vscode_support || c_cpp_properties_support then
-        generate_c_cpp_properties ();
-
       let result = Builder.build ~build_context ~project ~build_profile in
       display_section_sizes @@ Toolchain.size result.output;
+
+      if config.dev.vscode_support || c_cpp_properties_support then
+        generate_c_cpp_properties ();
 
       result
     in
