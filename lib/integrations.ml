@@ -63,7 +63,7 @@ module Vs_code = struct
     defines : string list;
   }
 
-  let workspace_folder = sprintf {|\${workspaceFolder}/%s|}
+  let workspace_folder = sprintf {|${workspaceFolder}/%s|}
 
   let of_project ~(config : Project_config.t) (project : avr_project) =
     let module C = Compiler_args in
@@ -85,9 +85,9 @@ module Vs_code = struct
           {
             name;
             include_path =
-              project.root_dir
+              workspace_folder ""
               :: "/usr/avr/include" (* FIXME: unix path hardcode *)
-              :: Filename.concat project.root_dir config.layout.root_dir
+              :: workspace_folder config.layout.root_dir
               :: List.map project.depends ~f:(fun p -> p.root_dir);
             compiler_path = "/usr/bin/avr-gcc";
             (* FIXME: unix path hardcode *)
@@ -100,6 +100,7 @@ module Vs_code = struct
                   C.to_includes
                   @@ get_resource_headers ~out_dir:config.layout.out_dir
                        project.resources;
+                  C.to_includes project.includes;
                 ];
             defines = [];
           };
