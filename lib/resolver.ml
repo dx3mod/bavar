@@ -76,8 +76,25 @@ and resolve_dependencies ~(ctx : Build_context.t) (depends : Dependency.t list)
     | Dependency.Git url -> resolve_git_depend url)
 
 and resolve_external_library root_dir =
-  let files = Util.globs ~path:root_dir [ "*.{c,cpp,cxx,s,o}" ] in
-  Project.make_external ~root_dir ~files ()
+  let source_dir =
+    let matches =
+      Util.globs ~path:root_dir [ "src"; "Src"; "Source"; "SRC"; "source" ]
+    in
+    match matches with
+    | [||] -> None
+    | [| path |] ->
+        let files =
+          Util.globs ~path [ "*.{c,cpp,cxx,s,o}"; "**/*.{c,cpp,cxx,s,o}" ]
+        in
+        Some (Project.make_external ~root_dir:path ~files ())
+    | _ -> failwith "many source directories"
+  in
+
+  match source_dir with
+  | Some project -> project
+  | None ->
+      let files = Util.globs ~path:root_dir [ "*.{c,cpp,cxx,s,o}" ] in
+      Project.make_external ~root_dir ~files ()
 
 and resolver_resources ~root_dir (resources : Project_config.resource list) =
   let open Project_config in
