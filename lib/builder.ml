@@ -101,8 +101,12 @@ let build ~(build_context : Build_context.t) ~(project : avr_project)
         Util.print_command_log ~prog:"BUILD RESOURCE"
           [ "from"; resource_path; "to"; output ];
 
-        Codegen.gen_resource_header ~name:filename ~for':resource_path
-          ~to':output);
+        if String.is_suffix ~suffix:".1bit.bmp" filename then
+          Codegen.Resource.generate_bmp1bit ~name:filename ~for':resource_path
+            ~to':output
+        else
+          Codegen.Resource.generate_binary ~name:filename ~for':resource_path
+            ~to':output);
 
       output
     in

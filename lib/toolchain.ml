@@ -95,3 +95,17 @@ let git_clone url ~to' =
   | WEXITED 0 -> ()
   | WEXITED code -> raise @@ Git_clone_error code
   | _ -> failwith "failed git clone process"
+
+let bmp2bit paths =
+  Util.print_command_log ~prog:"BMP2BIT" paths;
+
+  let ch =
+    Core_unix.open_process_in
+      (sprintf "bavar-bmp2bit %s" @@ String.concat ~sep:" " paths)
+  in
+
+  let lines = In_channel.input_lines ch in
+
+  In_channel.close ch;
+
+  lines

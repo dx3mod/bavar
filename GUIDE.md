@@ -50,6 +50,10 @@ Valid configuration file names: `LabAvrProject`, `avr-project`, `bavar`, `bavar-
 
 ## Resources
 
+#### As is
+
+Converts the file to a set of bytes as is.
+
 In configuration file.
 
 ```clojure
@@ -62,7 +66,13 @@ In code, you can reference the resource content using the `IMAGE_BIN` variable.
 IMAGE_BIN; // const unsigned char [] PROGMEM
 ```
 
-Important! Converts the file to a set of bytes as is.
+#### Horizontal 1bit
+
+A file for conversion to a horizontal 1bit image (for monochrome OLED as an example) should end with `.1bit.bmp`.
+
+```clojure
+(resources image.1bit.bmp)
+```
 
 ## Depends
 

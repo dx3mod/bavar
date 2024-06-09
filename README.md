@@ -5,7 +5,7 @@ A domain-specific build system for AVR C/C++ projects with a strong opinion abou
 - Opinionated projects organization
 - Build with resolution of external dependencies
   - Automatic inclusion of files
-  - Bundling resources into a firmware
+  - Bundling resources into a firmware with some image conversions 
 - Firmware upload (powered by avrdude)
 - Integration with text editors (support generations)
   - compile_flags.txt for clangd
@@ -45,11 +45,9 @@ $ bavar build @upload
 
 ## Installation
 
-This should already be installed on your system:
+This should already be installed on your system: AVR GCC toolchain for development projects, avrdude utility for uploading firmware to a microcontroller.
 
-- AVR GCC toolchain (for compile)
-- avrdude utility (for upload firmware to mcu)
-- Git (optional) (for download a project's dependencies)
+Optional requirements with additional features: Git for downloading a project's dependencies, Python3 (and PIL module) for image conventions.
 
 #### Prebuilt binaries
 

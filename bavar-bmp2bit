@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+
+from PIL import Image
+from itertools import batched
+import sys
+
+join = lambda xs: ''.join(map(str, xs))
+
+for filename in sys.argv[1:]:
+    img = Image.open(filename)
+
+    pixels = img.convert('1').point(lambda x: bool(x)).getdata()
+
+    result = [
+        hex(int(join(bins), 2))
+        for bins in batched(pixels, 8)
+    ]
+
+    print(*result, sep=",")
