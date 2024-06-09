@@ -45,7 +45,13 @@ let rec compile_the_project ~root_dir ~target ~debug ~clangd_support
     in
 
     let program output =
-      Toolchain.avrdude ~programmer:config.program.programmer_id
+      let mcu =
+        match config.target with
+        | Some { mcu; _ } -> Upload_cmd.normalize_mcu mcu
+        | _ -> failwith "for upload you must select mcu!"
+      in
+
+      Toolchain.avrdude ~programmer:config.program.programmer_id ~mcu
         ~port:config.program.port ~firmware:(`Elf output) ()
     in
 

@@ -52,13 +52,15 @@ let ar_rcs ~output files =
 
 exception Program_error of int
 
-let avrdude ~programmer ~port ~firmware ?(custom = []) () =
+let avrdude ~programmer ~port ~firmware ~mcu ?(custom = []) () =
   let args =
     List.concat
       [
         [
           "-c";
           programmer;
+          "-p";
+          mcu;
           (match firmware with `Elf path -> sprintf "-Uflash:w:%s:e" path);
         ];
         Option.value_map port ~default:[] ~f:(fun port -> [ "-P"; port ]);
