@@ -99,8 +99,6 @@ let git_clone url ~to' =
   | _ -> failwith "failed git clone process"
 
 let bmp2bit paths =
-  Util.print_command_log ~prog:"BMP2BIT" paths;
-
   let ch =
     Core_unix.open_process_in
       (sprintf "bavar-bmp2bit %s" @@ String.concat ~sep:" " paths)

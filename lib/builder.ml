@@ -99,7 +99,7 @@ let build ~(build_context : Build_context.t) ~(project : avr_project)
 
       if Float.(last_modify_time_of_resource > last_modify_time_of_output) then (
         Util.print_command_log ~prog:"BUILD RESOURCE"
-          [ "from"; resource_path; "to"; output ];
+          [ resource_path; " -> "; "\n"; "                 "; output ];
 
         if String.is_suffix ~suffix:".1bit.bmp" filename then
           Codegen.Resource.generate_bmp1bit ~name:filename ~for':resource_path
@@ -143,6 +143,8 @@ let build ~(build_context : Build_context.t) ~(project : avr_project)
 
         output_a_path)
   in
+
+  Core_unix.mkdir_p @@ Build_context.output_dir build_context build_profile;
 
   let build_unit = to_build_unit project in
   let resources = build_resources build_unit.resources in

@@ -12,10 +12,6 @@ let rec compile_the_project ~root_dir ~target ~debug ~clangd_support
 
     let project = Resolver.resolve_avr_project build_context in
 
-    Core_unix.mkdir_p @@ Build_context.output_dir build_context build_profile;
-
-    target |> ignore;
-
     let generate_compile_flags_txt () =
       Out_channel.write_lines
         (Filename.concat root_dir "compile_flags.txt")
