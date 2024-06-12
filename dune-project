@@ -15,7 +15,7 @@
 
 (license MIT)
 
-(documentation https://url/to/documentation)
+; (documentation https://url/to/documentation)
 
 (package
  (name bavar)

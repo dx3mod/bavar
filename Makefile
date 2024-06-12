@@ -15,7 +15,8 @@ artifacts:
 	chmod +x $(ARTIFACTS_PATH)/main.exe
 
 	mv $(ARTIFACTS_PATH)/main.exe $(ARTIFACTS_PATH)/bin/bavar
-	cp bavar-bmp2bit $(ARTIFACTS_PATH)/bin/
+	
+	cp	tools/bmp2bit $(ARTIFACTS_PATH)/bin/bavar-bmp2bit
 
 	COMMAND_OUTPUT_INSTALLATION_BASH=1 $(ARTIFACTS_PATH)/bin/bavar > $(ARTIFACTS_PATH)/bavar-completion.sh
 
