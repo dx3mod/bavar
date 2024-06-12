@@ -26,7 +26,7 @@ let rec initialize_new_project ~path ~target ~forced ~cpp () =
         fprintf ch "(name %s)\n" proj_name;
         Option.iter target ~f:(fprintf ch "(target %s)\n"));
 
-    write_main_c ~source_dir:(Filename.concat path config.layout.root_dir) ~cpp;
+    write_main_c ~source_dir:config.layout.root_dir ~cpp;
 
     printf "Entering directory '%s'\n" path;
     Ocolor_format.printf
