@@ -11,7 +11,7 @@
 
 (authors "Mihail Lopatin <dx3mod@bk.ru>")
 
-; (maintainers "Maintainer Name")
+(maintainers "Mihail Lopatin <dx3mod@bk.ru>")
 
 (license MIT)
 
