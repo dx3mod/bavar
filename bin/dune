@@ -4,3 +4,8 @@
  (libraries bavar core_unix.command_unix)
  (preprocess
   (pps ppx_jane)))
+
+(install
+ (section bin)
+ (package bavar)
+ (files ../tools/bavar-bmp2bit))
