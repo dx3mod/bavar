@@ -1,6 +1,6 @@
 # Development guide
 
-### To-Do
+## To-Do
 
 - [ ] Improve error handling
 - Move to cross-platform
@@ -13,3 +13,10 @@
   - [x] naive horizontal 1 bit conversion
 - [ ] Integrate simulation (powered by simavr)
 - [ ] Advance support debugging features
+
+
+## Build prebuilt binaries 
+
+```console
+$ ./build.dist.ml -out <dir>
+```
