@@ -11,3 +11,11 @@ and avr_project_depend = {
   include_dirs : string list;
   depends : avr_project_depend list;
 }
+
+and project_kind = Firmware | Library
+
+let is_lib_kind = function Library -> true | Firmware -> false
+
+let project_kind_to_string = function
+  | Library -> "library"
+  | Firmware -> "firmware"

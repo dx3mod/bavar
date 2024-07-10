@@ -17,7 +17,7 @@ Has deep integration with the existing toolchain to provide a better developer e
 Initialize a new AVR C project.
 
 ```console
-$ bavar init -target attiny2313a blink
+$ bavar init firmware -target attiny2313a blink
 ```
 
 ```

@@ -83,4 +83,5 @@ let exit_with_message ?(code = 1) msg =
   exit code
 
 let waring msg =
-  eprintf "%s\n" (if is_terminal then Color_text.colorize_yellow msg else msg)
+  eprintf "%s\n" (if is_terminal then Color_text.colorize_yellow msg else msg);
+  Out_channel.flush stderr

@@ -10,7 +10,8 @@
   re
   spawn
   yojson
-  ppx_deriving_yojson.runtime)
+  ppx_deriving_yojson.runtime
+  color_text)
  (preprocess
   (pps
    ppx_deriving.show
