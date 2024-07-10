@@ -20,20 +20,21 @@ exception Not_found_config of { path : string }
 let valid_configuration_file_names =
   [ "LabAvrProject"; "avr-project"; "bavar"; "bavar-project" ]
 
-let read_project_config_exn ~root_dir =
-  let config_file_path =
-    let findings = globs ~path:root_dir valid_configuration_file_names in
+let get_config_filename_at_dir dirpath =
+  let findings = globs ~path:dirpath valid_configuration_file_names in
+  match findings with
+  | [||] -> None
+  | [| path |] -> Some path
+  | _ -> failwith "found many configuration files at directory!"
 
-    match findings with
-    | [| path |] -> path
-    | [||] -> raise (Not_found_config { path = root_dir })
-    | _ -> failwith "found many configuration files at directory!"
+let read_project_config_exn ~root_dir =
+  let config_filename =
+    get_config_filename_at_dir root_dir
+    |> Option.value_or_thunk ~default:(fun () ->
+           raise (Not_found_config { path = root_dir }))
   in
 
-  if not @@ Sys_unix.file_exists_exn config_file_path then
-    raise (Not_found_config { path = root_dir });
-
-  Project_config.of_file config_file_path
+  Project_config.of_file config_filename
 
 let read_project_config ~root_dir =
   try read_project_config_exn ~root_dir with
@@ -44,10 +45,7 @@ let read_project_config ~root_dir =
       eprintf "Failed to read config: %s.\nAt '%s' file.\n" err.message err.path;
       exit 1
 
-let configuration_filename =
-  Sys.getenv "BAVAR_CONFIG_NAME" |> Option.value ~default:"avr-project"
-
-let find_entry_file ~proj_name files =
+let detect_project_type ~proj_name files =
   let check_ext = function
     | "c" -> `C
     | "cpp" | "cxx" -> `Cpp
@@ -57,21 +55,22 @@ let find_entry_file ~proj_name files =
 
   Array.find_map
     ~f:(fun filename ->
-      match Base.String.rsplit2_exn ~on:'.' @@ Filename.basename filename with
+      match String.rsplit2_exn ~on:'.' @@ Filename.basename filename with
       | "main", ext -> Some (`Executable, check_ext ext)
       | name, ext when String.equal name proj_name ->
           Some (`Library, check_ext ext)
       | _ -> None)
     files
 
-let find_entry_file_exn ~proj_name files =
-  find_entry_file ~proj_name files
-  |> Option.value_exn ~message:"not found entry file!"
-
 let print_command_log ~prog args =
   String.concat ~sep:" " args
-  |> Ocolor_format.printf "\n[@{<cyan> %s @}] %s\n" prog;
+  |> Ocolor_format.printf "[@{<cyan> %s @}] %s\n\n" prog;
 
   Ocolor_format.pp_print_flush Ocolor_format.std_formatter ()
 
 let hash_path = Md5.(Fn.compose to_hex digest_string)
+
+let exit_with_message ?(code = 1) msg =
+  Ocolor_format.eprintf "@{<red> %s @}\n" msg;
+  Ocolor_format.pp_print_flush Ocolor_format.err_formatter ();
+  exit code

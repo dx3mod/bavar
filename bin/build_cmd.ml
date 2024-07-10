@@ -3,48 +3,70 @@ open Bavar
 
 let current_path = Core_unix.getcwd ()
 
-let rec compile_the_project ~root_dir ~target ~debug ~clangd_support
-    ~c_cpp_properties_support () =
+let rec compile_the_project ~root_dir ~target ~debug () =
   try
     let config = Util.read_project_config ~root_dir in
-    let build_context = Build_context.make ~root_dir ~config in
-    let build_profile = if debug then `Debug else `Release in
-
-    let project = Resolver.resolve_avr_project build_context in
-
-    let generate_compile_flags_txt () =
-      Out_channel.write_lines
-        (Filename.concat root_dir "compile_flags.txt")
-        (Integrations.Clangd.to_compile_flags_txt ~config project)
-    in
-
-    let generate_c_cpp_properties () =
-      Core_unix.mkdir_p ".vscode";
-
-      Out_channel.with_file ".vscode/c_cpp_properties.json" ~f:(fun ch ->
-          Integrations.Vs_code.of_project ~config project
-          |> Integrations.Vs_code.to_yojson
-          |> Yojson.Safe.pretty_to_channel ch)
-    in
 
     let build () =
-      if config.dev.clangd_support || clangd_support then
-        generate_compile_flags_txt ();
+      let build_context = Build_context.make ~root_dir ~config in
+      let build_profile = if debug then `Debug else `Release in
 
-      if config.dev.vscode_support || c_cpp_properties_support then
-        generate_c_cpp_properties ();
+      let main_project = Project_resolver.resolve_avr_project build_context in
+      let output_dir = Build_context.output_dir build_context build_profile in
 
-      let result = Builder.build ~build_context ~project ~build_profile in
-      display_section_sizes @@ Toolchain.size result.output;
+      let build_opts =
+        match build_profile with
+        | `Release -> main_project.config.build.release
+        | `Debug -> main_project.config.build.debug
+      in
 
-      result
+      let kind, lang =
+        match
+          Util.detect_project_type ~proj_name:build_context.config.name
+            main_project.source_files
+        with
+        | Some (kind, lang) -> (kind, lang)
+        | None ->
+            eprintf "Not found any entrypoint at the project!\n";
+            exit 1
+      in
+
+      let output =
+        match kind with
+        | `Executable -> Filename.concat output_dir "firmware.elf"
+        | `Library -> Filename.concat output_dir (sprintf "%s.o" config.name)
+      in
+
+      let build_opts =
+        match kind with
+        | `Library ->
+            (* force disable lto for library *)
+            { build_opts with lto = false }
+        | `Executable -> build_opts
+      in
+
+      let compiler_args =
+        let profile = (build_opts, debug) in
+        Compiler_args.of_avr_project ~profile ~output main_project
+      in
+
+      Core_unix.mkdir_p output_dir;
+      Toolchain.cc ~cwd:root_dir ~lang compiler_args
+      |> Toolchain.wait_compilation;
+
+      (* В случае если не получилось создать бинарник, но компиляция завершилась успешно. Например, при использовании --syntax-only.dun *)
+      if Sys_unix.file_exists_exn output then (
+        let section_sizes = Toolchain.size output in
+        display_section_sizes section_sizes;
+        Some output)
+      else None
     in
 
     let program output =
       let mcu =
         match config.target with
         | Some { mcu; _ } -> Upload_cmd.normalize_mcu mcu
-        | _ -> failwith "for upload you must select mcu!"
+        | _ -> Util.exit_with_message "For upload you must select MCU!"
       in
 
       Toolchain.avrdude ~programmer:config.program.programmer_id ~mcu
@@ -52,11 +74,9 @@ let rec compile_the_project ~root_dir ~target ~debug ~clangd_support
     in
 
     match target with
-    | Some "@compile_flags.txt" -> generate_compile_flags_txt ()
-    | Some "@c_cpp_properties" -> generate_c_cpp_properties ()
-    | Some "@upload" -> build () |> fun r -> program Builder.(r.output)
-    | Some _ -> failwith "invalid target value for build!"
     | None -> build () |> ignore
+    | Some "@upload" -> Option.iter ~f:program (build ())
+    | _ -> Util.exit_with_message "Unknown build's argument!"
   with
   | Toolchain.Compilation_error code ->
       eprintf "\nFailed to compile the project: %d exit code.\n" code;
@@ -67,9 +87,6 @@ let rec compile_the_project ~root_dir ~target ~debug ~clangd_support
   | Toolchain.Git_clone_error code ->
       eprintf "Failed to clone Git repository: %d exit code.\n" code;
       exit code
-  | Resolver.Resolve_error { message } ->
-      eprintf "Failed to resolve project: %s!\n" message;
-      exit 1
   | Dependency.Parse_error { value; message } ->
       eprintf "Invalid '%s' value: %s!\n" value message;
       exit 1
@@ -85,22 +102,16 @@ and display_section_sizes section_sizes =
 
   printf " .text  :        %s bytes\n" section_sizes.text;
   printf " .data  :        %s bytes\n" section_sizes.data;
-  printf " .bss   :        %s bytes\n" section_sizes.bss
+  printf " .bss   :        %s bytes\n" section_sizes.bss;
+  Out_channel.flush stdout
 
 let command =
   Command.basic ~summary:"compile the current project"
-    ~readme:(fun () -> {|Targets: '@compile_flags.txt', '@c_cpp_properties'.|})
     (let%map_open.Command root_dir =
        flag "-root-dir"
          (optional_with_default current_path string)
          ~doc:"path to project"
      and debug =
        flag "-debug" no_arg ~doc:"enable debug profile for compilation"
-     and clangd_support =
-       flag "-compile-flags" no_arg ~doc:"enable clangd config build"
-     and c_cpp_properties_support =
-       flag "-c-cpp-properties" no_arg
-         ~doc:"enable vscode/c_cpp_properties.json config build"
      and target = anon @@ maybe ("@target" %: string) in
-     compile_the_project ~root_dir ~target ~debug ~clangd_support
-       ~c_cpp_properties_support)
+     compile_the_project ~root_dir ~target ~debug)

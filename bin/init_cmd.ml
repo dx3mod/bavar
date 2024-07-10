@@ -22,7 +22,7 @@ let rec initialize_new_project ~path ~target ~forced ~cpp () =
 
     Core_unix.mkdir_p config.layout.root_dir;
 
-    Out_channel.with_file Util.configuration_filename ~f:(fun ch ->
+    Out_channel.with_file "avr-project" ~f:(fun ch ->
         fprintf ch "(name %s)\n" proj_name;
         Option.iter target ~f:(fprintf ch "(target %s)\n"));
 
@@ -49,11 +49,11 @@ and write_main_c ~source_dir ~cpp =
 let command =
   Command.basic ~summary:"initialize a new project"
     ~readme:(fun () ->
-      {|To set an alternative configuration file name, set the $BAVAR_CONFIG_NAME
+      {|To set an alternative configuration file name, set the 
 environment variable to any valid value.|})
     (let%map_open.Command target =
        flag "-target" (optional string) ~doc:"mcu:freq MCU and frequency values"
      and force = flag "-f" no_arg ~doc:"force"
-     and cpp = flag "-cpp" no_arg ~doc:"as C++ project"
+     and cpp = flag "-cxx" no_arg ~doc:"as C++ project"
      and path = anon ("path" %: string) in
      initialize_new_project ~path ~target ~forced:force ~cpp)

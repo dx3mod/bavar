@@ -1,17 +1,16 @@
 # bavar
 
-A domain-specific build system for AVR C/C++ projects with a strong opinion about how to build them.
+A domain-specific build system for AVR C/C++ projects with a strong opinion on how to build them. 
+Has deep integration with the existing toolchain to provide a better developer experience.
 
 #### Features
 
-- ✍️ Dedicated project organisation (not pre-configured)
-- 🏗️ Build with external dependencies resolved
-  - Automatic inclusion of header files
-  - Bundling resources into a firmware with some image conversions
+- ✍️ Opinionated project organization
+- 🏗️ Build with automatic dependency resolution
 - 🔌 Upload firmware to microcontroller (powered by avrdude)
-- 📝 Integration with text editors (support generations)
+<!-- - 📝 Integration with text editors (support generations)
   - compile_flags.txt for clangd
-  - c_cpp_properties.json for VSCode C/C++ extension
+  - c_cpp_properties.json for VSCode C/C++ extension -->
 
 ## Usage
 
