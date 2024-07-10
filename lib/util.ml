@@ -1,5 +1,8 @@
 open Core
 
+let is_terminal =
+  Caml_unix.isatty Caml_unix.stdout && Caml_unix.isatty Caml_unix.stderr
+
 let globs ~path =
   let f files pattern =
     match
@@ -63,14 +66,21 @@ let detect_project_type ~proj_name files =
     files
 
 let print_command_log ~prog args =
-  String.concat ~sep:" " args
-  |> Ocolor_format.printf "[@{<cyan> %s @}] %s\n\n" prog;
+  let args = String.concat ~sep:" " args in
+  printf "[%s] %s\n\n"
+    (if is_terminal then Color_text.colorize_cyan prog else prog)
+    args;
 
-  Ocolor_format.pp_print_flush Ocolor_format.std_formatter ()
+  Out_channel.flush stdout
 
 let hash_path = Md5.(Fn.compose to_hex digest_string)
 
 let exit_with_message ?(code = 1) msg =
-  Ocolor_format.eprintf "@{<red> %s @}\n" msg;
-  Ocolor_format.pp_print_flush Ocolor_format.err_formatter ();
+  if is_terminal then eprintf "%s\n" (Color_text.colorize_red msg)
+  else eprintf "%s\n" msg;
+
+  Out_channel.flush stderr;
   exit code
+
+let waring msg =
+  eprintf "%s\n" (if is_terminal then Color_text.colorize_yellow msg else msg)

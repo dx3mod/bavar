@@ -17,7 +17,7 @@ let rec wait_compilation pid = Core_unix.wait (`Pid pid) |> handle_compilation
 and handle_compilation (_, status) =
   Result.iter_error status ~f:(function
     | `Exit_non_zero code -> raise (Compilation_error code)
-    | _ -> failwith "failed compilation process")
+    | _ -> Util.exit_with_message "failed compilation process")
 
 type section_sizes = {
   text : string;
@@ -36,19 +36,17 @@ let size path =
 
   match values with
   | [ text; data; bss; dec; _ ] -> { text; data; bss; all = dec }
-  | _ -> failwith "failed to parse avr-size output"
+  | _ -> Util.exit_with_message "failed to parse avr-size output"
 
 let ar_rcs ~output files =
-  Ocolor_format.printf "[@{<cyan> AR RCS @}] %s %s\n\n" output
-    (String.concat ~sep:" " files);
-  Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
+  Util.print_command_log ~prog:"AR RCS" [ output; String.concat ~sep:" " files ];
 
   let info =
     Core_unix.create_process ~prog:"avr-gcc-ar" ~args:("rcs" :: output :: files)
   in
   match snd @@ Core_unix.wait (`Pid info.pid) with
   | Ok () -> ()
-  | _ -> failwith "fail ar rcs"
+  | _ -> Util.exit_with_message "fail ar rcs"
 
 exception Program_error of int
 
@@ -79,7 +77,7 @@ let avrdude ~programmer ~port ~firmware ~mcu ?(custom = []) () =
   match snd @@ Caml_unix.waitpid [] pid with
   | WEXITED 0 -> ()
   | WEXITED code -> raise (Program_error code)
-  | _ -> failwith "failed avrdude program process"
+  | _ -> Util.exit_with_message "failed avrdude program process"
 
 exception Git_clone_error of int
 
@@ -96,7 +94,7 @@ let git_clone url ~to' =
   match status with
   | WEXITED 0 -> ()
   | WEXITED code -> raise @@ Git_clone_error code
-  | _ -> failwith "failed git clone process"
+  | _ -> Util.exit_with_message "failed git clone process"
 
 let bmp2bit paths =
   let ch =

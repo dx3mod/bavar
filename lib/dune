@@ -9,7 +9,6 @@
   globlon
   re
   spawn
-  ocolor
   yojson
   ppx_deriving_yojson.runtime)
  (preprocess

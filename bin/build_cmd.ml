@@ -5,6 +5,7 @@ let current_path = Core_unix.getcwd ()
 
 let rec compile_the_project ~root_dir ~target ~debug () =
   try
+    let root_dir = Caml_unix.realpath root_dir in
     let config = Util.read_project_config ~root_dir in
 
     let build () =
@@ -27,22 +28,22 @@ let rec compile_the_project ~root_dir ~target ~debug () =
         with
         | Some (kind, lang) -> (kind, lang)
         | None ->
-            eprintf "Not found any entrypoint at the project!\n";
-            exit 1
+            Util.exit_with_message "Not found any entrypoint at the project!\n"
       in
 
-      let output =
+      let output, build_opts =
         match kind with
-        | `Executable -> Filename.concat output_dir "firmware.elf"
-        | `Library -> Filename.concat output_dir (sprintf "%s.o" config.name)
-      in
+        | `Executable ->
+            (* executable projects must be have specific target *)
+            if Option.is_none config.target then
+              Util.exit_with_message
+                "Failed to build a project without a specific target!";
 
-      let build_opts =
-        match kind with
+            ( Filename.concat output_dir "firmware.elf",
+              (* force disable lto for library *)
+              { build_opts with lto = false } )
         | `Library ->
-            (* force disable lto for library *)
-            { build_opts with lto = false }
-        | `Executable -> build_opts
+            (Filename.concat output_dir (sprintf "%s.o" config.name), build_opts)
       in
 
       let compiler_args =
@@ -66,7 +67,7 @@ let rec compile_the_project ~root_dir ~target ~debug () =
       let mcu =
         match config.target with
         | Some { mcu; _ } -> Upload_cmd.normalize_mcu mcu
-        | _ -> Util.exit_with_message "For upload you must select MCU!"
+        | _ -> Util.exit_with_message "\nFor upload you must select MCU!"
       in
 
       Toolchain.avrdude ~programmer:config.program.programmer_id ~mcu
@@ -96,9 +97,9 @@ let rec compile_the_project ~root_dir ~target ~debug () =
 
 and display_section_sizes section_sizes =
   let open Toolchain in
-  Ocolor_format.printf "\n[@{<blue> MEMORY USAGE @}] %s bytes\n\n"
+  printf "\n[ %s ] %s bytes\n\n"
+    (Color_text.colorize_blue "MEMORY USAGE")
     section_sizes.all;
-  Ocolor_format.pp_print_flush Ocolor_format.std_formatter ();
 
   printf " .text  :        %s bytes\n" section_sizes.text;
   printf " .data  :        %s bytes\n" section_sizes.data;

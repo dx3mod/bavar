@@ -34,7 +34,6 @@
   re
   globlon
   spawn
-  ocolor
   yojson
   ppx_deriving_yojson)
  (tags
