@@ -14,11 +14,12 @@ module Resource = struct
     (* FIXME: read all file is bloat *)
     let resource_contents = In_channel.read_all filename in
 
+    let char_to_hex = Fn.compose (sprintf "0x%x") int_of_char in
+
     let data =
-      String.to_sequence resource_contents
-      |> Sequence.map ~f:(Fn.compose (sprintf "0x%x") int_of_char)
-      |> Sequence.fold ~init:"" ~f:(fun str byte ->
-             String.append str @@ byte ^ ",")
+      resource_contents
+      |> String.fold ~init:"" ~f:(fun str byte ->
+             String.append str @@ (char_to_hex byte) ^ ",")
     in
 
     Out_channel.write_all output

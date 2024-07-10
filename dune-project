@@ -2,7 +2,7 @@
 
 (name bavar)
 
-(version 0.4.3)
+(version 0.5.0)
 
 (generate_opam_files true)
 
@@ -22,9 +22,11 @@
  (synopsis "AVR C/C++ project builder")
  (description "A domain-specific build system for AVR C/C++ projects")
  (depends
-  ocaml
+  (ocaml
+   (>= 5.2.0))
   dune
-  core
+  (core
+   (>= 0.16.2))
   core_unix
   sexplib
   ppx_deriving
