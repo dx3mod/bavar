@@ -1,6 +1,6 @@
 # bavar
 
-A domain-specific build system for AVR C/C++ projects with a strong opinion on how to build them. 
+A domain-specific build system for AVR C/C++ projects with a strong opinion on how to build them.
 Has deep integration with the existing toolchain to provide a better developer experience.
 
 #### Features
