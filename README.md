@@ -62,8 +62,7 @@ To get prebuilt binaries, see the [releases page](https://github.com/dx3mod/bava
 using [OPAM](https://opam.ocaml.org/) package manager.
 
 ```console
-$ git clone https://github.com/dx3mod/bavar.git
-$ opam install ./bavar
+$ opam pin https://github.com/dx3mod/bavar.git
 ```
 
 ## Related
